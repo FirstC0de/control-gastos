@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './styles/globals.css';
 import Navbar from './components/Navbar';
 import { FinanceProvider } from './context/FinanceContext';
+import Footer from './components/Footer';
 
 
 const inter = Inter({ subsets: ['latin'] });
@@ -27,8 +28,11 @@ export default function RootLayout({
           <Navbar />
           <main className="container mx-auto px-4 py-8">
             {children}
+           
           </main>
+         
         </FinanceProvider>
+        
       </body>
     </html>
   );

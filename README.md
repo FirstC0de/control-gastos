@@ -19,13 +19,17 @@ Interfaz responsive (móvil y desktop)
 
 Falta agregar:
 
-Edicion de gastos,
-Eliminacion de gastos,
-Ingreso de cuentas,
-Control de gastos entre cuentas,
-Diferentes monedas,
+Edicion de gastos.
+Eliminacion de gastos.
+Ingreso de cuentas.
+Control de gastos entre cuentas.
+Diferentes monedas.
 Visualizacion por fechas, categorias.
 Metricas de gastos, balance, ingresos.
+Agregado de PDF,CSV, con gastos, cuotas, resumen tarjeta.
+Metodos de ahorro.
+Aviso de limite de gastos.
+
 
 -----------------------------------------------------------------------
 
