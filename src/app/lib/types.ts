@@ -1,3 +1,4 @@
+import NextAuth from "next-auth";
 export type Expense = {
     id: string;
     description: string;
@@ -11,3 +12,17 @@ export type Expense = {
     amount: number;
     month: string; // Formato "YYYY-MM"
   };
+
+  declare module "next-auth" {
+    interface User {
+      id: string;
+      // Agrega otros campos personalizados si los necesitas
+      role?: string;
+    }
+  
+    interface Session {
+      user: User & {
+        id: string;
+      };
+    }
+  }

@@ -3,6 +3,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { Expense } from '../lib/types';
 import { loadExpenses, saveExpenses, loadMonthlyIncome, saveMonthlyIncome } from '../lib/storage';
+import { useSession } from "next-auth/react";
+
 
 type FinanceContextType = {
   expenses: Expense[];
@@ -15,6 +17,7 @@ type FinanceContextType = {
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [monthlyIncome, setIncome] = useState<number>(0);
 
@@ -29,6 +32,28 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     saveExpenses(expenses);
   }, [expenses]);
 
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      setExpenses([]);
+      setMonthlyIncome(0);
+    } else if (status === 'authenticated' && session?.user?.id) {
+      loadUserData(session.user.id);
+    }
+  }, [status, session?.user?.id]);
+  
+  const loadUserData = async (userId: string) => {
+    try {
+      const [userExpenses, userIncome] = await Promise.all([
+        fetch(`/api/users/${userId}/expenses`).then(res => res.json()),
+        fetch(`/api/users/${userId}/income`).then(res => res.json())
+      ]);
+
+      setExpenses(userExpenses);
+      setMonthlyIncome(userIncome);
+    } catch (error) {
+      console.error("Error cargando datos:", error);
+    }
+  };
   const addExpense = (expense: Omit<Expense, 'id'>) => {
     setExpenses(prev => [
       ...prev,

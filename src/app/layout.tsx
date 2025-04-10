@@ -3,8 +3,7 @@ import { Inter } from 'next/font/google';
 import './styles/globals.css';
 import Navbar from './components/Navbar';
 import { FinanceProvider } from './context/FinanceContext';
-import Footer from './components/Footer';
-
+import { Providers } from './providers'
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,6 +22,7 @@ export default function RootLayout({
     <html lang="es">
       <body>
         {/* Client Component que envuelve todo */}
+        <Providers>
         <FinanceProvider>
           {/* Navbar puede ser Server Component si no usa hooks */}
           <Navbar />
@@ -32,7 +32,7 @@ export default function RootLayout({
           </main>
          
         </FinanceProvider>
-        
+        </Providers>
       </body>
     </html>
   );
