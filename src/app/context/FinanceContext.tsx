@@ -10,6 +10,7 @@ type FinanceContextType = {
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   updateExpense: (id: string, updates: Partial<Expense>) => void;
   setMonthlyIncome: (amount: number) => void;
+  handleDelete: (id: string) => void; // <- Nueva prop
 };
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -42,6 +43,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  // En tu componente padre:
+const handleDelete = (id: string) => {
+  setExpenses(prev => prev.filter(expense => expense.id !== id));
+};
+
   const setMonthlyIncome = (amount: number) => {
     setIncome(amount);
     saveMonthlyIncome(amount);
@@ -54,7 +60,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         monthlyIncome,
         addExpense,
         updateExpense,
-        setMonthlyIncome
+        setMonthlyIncome,
+        handleDelete
       }}
     >
       {children}
