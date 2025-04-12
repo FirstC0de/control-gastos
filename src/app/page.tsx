@@ -1,4 +1,4 @@
-'use client'; // Agrega esta directiva al inicio del archivo
+'use client';
 
 import Dashboard from './components/Dashboard';
 import ExpenseForm from './components/ExpenseForm';
@@ -11,7 +11,8 @@ export default function HomePage() {
     expenses, 
     monthlyIncome, 
     addExpense, 
-    updateExpense 
+    updateExpense,
+    handleDelete
   } = useFinance();
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -30,8 +31,9 @@ export default function HomePage() {
         
         <ExpenseList 
           expenses={expenses} 
-          onUpdate={updateExpense} 
-        />
+          onUpdate={updateExpense}
+          onDelete={handleDelete} 
+          />
       </div>
       
       <div className="lg:col-span-1">
