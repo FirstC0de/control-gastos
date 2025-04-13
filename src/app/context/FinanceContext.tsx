@@ -1,49 +1,21 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { Expense, Income, Budget, BudgetCategory } from '../lib/types';
 import { 
-  loadExpenses, 
-  saveExpenses, 
-  loadIncomes, 
-  saveIncomes, 
-  loadBudgets, 
-  saveBudgets, 
-  loadMonthlyIncome, 
+  Expense, 
+  Income, 
+  Budget, 
+  Category, 
+  CategoryType,
+  FinanceContextType 
+} from '../lib/types';
+import { 
+  loadExpenses, saveExpenses, 
+  loadIncomes, saveIncomes, 
+  loadBudgets, saveBudgets, 
+  loadMonthlyIncome, saveMonthlyIncome,
+  loadCategories, saveCategories
 } from '../lib/storage';
-
-type FinanceContextType = {
-  // Gastos
-  expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
-  updateExpense: (id: string, updates: Partial<Expense>) => void;
-  deleteExpense: (id: string) => void;
-  
-  
-  // Ingresos
-  monthlyIncome: number;
-  setMonthlyIncome: (amount: number) => void;
-  incomes: Income[];
-  addIncome: (income: Omit<Income, 'id'>) => void;
-  updateIncome: (id: string, updates: Partial<Income>) => void;
-  deleteIncome: (id: string) => void;
-  
-  // Presupuestos
-  budgets: BudgetCategory[];
-  addBudget: (budget: Omit<BudgetCategory, 'id'>) => void;
-  updateBudget: (id: string, updates: Partial<Budget>) => void;
-  deleteBudget: (id: string) => void;
-  setBudgets: (budgets: Budget[]) => void; // Añade esta línea
-
-  // Métodos útiles
-  getRemainingBudget: (category: string) => number;
-  getCategoryExpenses: (category: string) => Expense[];
-  getTotalExpenses: () => number;
-  getTotalIncome: () => number;
-  getBalance: () => number;
-
-  calculateRemainingBudget: (category: string) => number;
-};
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
@@ -52,36 +24,71 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [monthlyIncome, setMonthlyIncome] = useState<number>(0); // Cambiado a setMonthlyIncome
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [monthlyIncome, setMonthlyIncomeState] = useState<number>(0);
 
   // Cargar datos iniciales
   useEffect(() => {
     setExpenses(loadExpenses());
     setIncomes(loadIncomes());
     setBudgets(loadBudgets());
-    setMonthlyIncome(loadMonthlyIncome());
+    setMonthlyIncomeState(loadMonthlyIncome());
+    const loadedCategories = loadCategories();
+    setCategories(loadedCategories.length > 0 ? loadedCategories : getDefaultCategories());
   }, []);
 
   // Guardar datos cuando cambian
   useEffect(() => saveExpenses(expenses), [expenses]);
   useEffect(() => saveIncomes(incomes), [incomes]);
   useEffect(() => saveBudgets(budgets), [budgets]);
+  useEffect(() => saveCategories(categories), [categories]);
+
+  // Categorías por defecto
+  const getDefaultCategories = (): Category[] => [
+    { id: '1', name: 'Comida', color: '#4CAF50', type: 'expense' },
+    { id: '2', name: 'Transporte', color: '#2196F3', type: 'expense' },
+    { id: '3', name: 'Entretenimiento', color: '#9C27B0', type: 'expense' },
+    { id: '4', name: 'Vivienda', color: '#FF9800', type: 'expense' },
+    { id: '5', name: 'Salario', color: '#4CAF50', type: 'income' },
+    { id: '6', name: 'Inversiones', color: '#009688', type: 'income' },
+    { id: '7', name: 'Ventas', color: '#795548', type: 'income' },
+    { id: '8', name: 'Otros', color: '#607D8B', type: 'both' },
+  ];
+
+  // Métodos de categorías
+  const addCategory = (category: Omit<Category, 'id'>) => {
+    const newCategory = { ...category, id: Date.now().toString() };
+    setCategories(prev => [...prev, newCategory]);
+  };
+
+  const updateCategory = (id: string, updates: Partial<Category>) => {
+    setCategories(prev =>
+      prev.map(cat => (cat.id === id ? { ...cat, ...updates } : cat))
+    );
+  };
+
+  const deleteCategory = (id: string) => {
+    const isUsed = expenses.some(e => e.categoryId === id) || 
+                  incomes.some(i => i.categoryId === id) ||
+                  budgets.some(b => b.categoryId === id);
+    
+    if (!isUsed) {
+      setCategories(prev => prev.filter(cat => cat.id !== id));
+    } else {
+      alert('No se puede eliminar una categoría en uso');
+    }
+  };
+
+  const getCategoriesByType = (type: CategoryType) => {
+    return categories.filter(cat => 
+      cat.type === 'both' || cat.type === type
+    );
+  };
 
   // Métodos para Gastos
   const addExpense = (expense: Omit<Expense, 'id'>) => {
     const newExpense = { ...expense, id: Date.now().toString() };
     setExpenses(prev => [...prev, newExpense]);
-    
-    // Actualizar presupuesto si corresponde
-    if (expense.category) {
-      setBudgets(prev =>
-        prev.map(budget =>
-          budget.category === expense.category
-            ? { ...budget, spent: budget.spent + expense.amount }
-            : budget
-        )
-      );
-    }
   };
 
   const updateExpense = (id: string, updates: Partial<Expense>) => {
@@ -91,24 +98,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteExpense = (id: string) => {
-    const expenseToDelete = expenses.find(exp => exp.id === id);
     setExpenses(prev => prev.filter(exp => exp.id !== id));
-    
-    // Actualizar presupuesto si corresponde
-    if (expenseToDelete?.category) {
-      setBudgets(prev =>
-        prev.map(budget =>
-          budget.category === expenseToDelete.category
-            ? { ...budget, spent: budget.spent - expenseToDelete.amount }
-            : budget
-        )
-      );
-    }
   };
 
   // Métodos para Ingresos
   const addIncome = (income: Omit<Income, 'id'>) => {
-    setIncomes(prev => [...prev, { ...income, id: Date.now().toString() }]);
+    const newIncome = { ...income, id: Date.now().toString() };
+    setIncomes(prev => [...prev, newIncome]);
   };
 
   const updateIncome = (id: string, updates: Partial<Income>) => {
@@ -123,7 +119,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   // Métodos para Presupuestos
   const addBudget = (budget: Omit<Budget, 'id'>) => {
-    setBudgets(prev => [...prev, { ...budget, id: Date.now().toString(), spent: 0 }]);
+    const newBudget = { ...budget, id: Date.now().toString(), spent: budget.spent || 0 };
+    setBudgets(prev => [...prev, newBudget]);
   };
 
   const updateBudget = (id: string, updates: Partial<Budget>) => {
@@ -137,19 +134,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Métodos útiles
-  const getRemainingBudget = (category: string) => {
-    const budget = budgets.find(b => b.category === category);
+  const getRemainingBudget = (categoryId: string) => {
+    const budget = budgets.find(b => b.categoryId === categoryId);
     if (!budget) return 0;
     
     const categoryExpenses = expenses
-      .filter(e => e.category === category)
+      .filter(e => e.categoryId === categoryId)
       .reduce((sum, e) => sum + e.amount, 0);
       
     return budget.amount - categoryExpenses;
-  };
-
-  const getCategoryExpenses = (category: string) => {
-    return expenses.filter(e => e.category === category);
   };
 
   const getTotalExpenses = () => {
@@ -157,54 +150,52 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getTotalIncome = () => {
-    const fixedIncome = monthlyIncome;
-    const variableIncome = incomes.reduce((sum, i) => sum + i.amount, 0);
-    return fixedIncome + variableIncome;
+    return monthlyIncome + incomes.reduce((sum, i) => sum + i.amount, 0);
   };
 
   const getBalance = () => {
     return getTotalIncome() - getTotalExpenses();
   };
 
-  const calculateRemainingBudget = (category: string) => {
-    const budget = budgets.find(b => b.category === category);
-    if (!budget) return 0;
-    
-    const categoryExpenses = expenses
-      .filter(e => e.category === category)
-      .reduce((sum, e) => sum + e.amount, 0);
-      
-    return budget.amount - categoryExpenses;
+  const setMonthlyIncome = (amount: number) => {
+    setMonthlyIncomeState(amount);
+    saveMonthlyIncome(amount);
   };
 
   return (
     <FinanceContext.Provider
       value={{
-        // Gastos
+        // Datos
         expenses,
+        incomes,
+        budgets,
+        categories,
+        monthlyIncome,
+        
+        // Categorías
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        getCategoriesByType,
+        
+        // Gastos
         addExpense,
         updateExpense,
         deleteExpense,
         
-        calculateRemainingBudget,
         // Ingresos
-        monthlyIncome,
-        setMonthlyIncome,
-        incomes,
         addIncome,
         updateIncome,
         deleteIncome,
         
         // Presupuestos
-        budgets,
         addBudget,
         updateBudget,
         deleteBudget,
-         setBudgets, // Asegúrate de exponer esta función
-         
+        setMonthlyIncome,
+        
         // Métodos útiles
         getRemainingBudget,
-        getCategoryExpenses,
         getTotalExpenses,
         getTotalIncome,
         getBalance

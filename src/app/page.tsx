@@ -12,7 +12,7 @@ export default function HomePage() {
     monthlyIncome, 
     addExpense, 
     updateExpense,
-    handleDelete
+    deleteExpense // Cambiado de handleDelete a deleteExpense
   } = useFinance();
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -32,15 +32,12 @@ export default function HomePage() {
         <ExpenseList 
           expenses={expenses} 
           onUpdate={updateExpense}
-          onDelete={handleDelete} 
+          onDelete={deleteExpense} 
           />
       </div>
       
       <div className="lg:col-span-1">
-        <SummaryCard 
-          expenses={expenses}
-          monthlyIncome={monthlyIncome}
-        />
+        <SummaryCard/>
       </div>
     </div>
   );
