@@ -114,7 +114,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteIncome = (id: string) => {
-    setIncomes(prev => prev.filter(inc => inc.id !== id));
+    setIncomes(prev => prev.filter(income => income.id !== id));
+    // Asegúrate de que esto actualiza el localStorage también
+    saveIncomes(incomes.filter(income => income.id !== id));
   };
 
   // Métodos para Presupuestos

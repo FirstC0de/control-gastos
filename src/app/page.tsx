@@ -9,22 +9,15 @@ import { useFinance } from './context/FinanceContext';
 export default function HomePage() {
   const { 
     expenses, 
-    monthlyIncome, 
     addExpense, 
     updateExpense,
     deleteExpense // Cambiado de handleDelete a deleteExpense
   } = useFinance();
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const balance = monthlyIncome - totalExpenses;
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2">
         <Dashboard 
-          balance={balance}
-          monthlyIncome={monthlyIncome}
-          totalExpenses={totalExpenses}
         />
         
         <ExpenseForm onSubmit={addExpense} />

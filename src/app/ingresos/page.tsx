@@ -15,7 +15,6 @@ export default function FinancePage() {
     addBudget,
     expenses,
     categories,
-    getCategoriesByType
   } = useFinance();
 
   const router = useRouter();
@@ -52,7 +51,7 @@ export default function FinancePage() {
 
   const handleAddIncome = () => {
     if (!newIncome.name || !newIncome.amount) return;
-    
+
     // Crear el objeto sin el id primero
     const incomeData = {
       name: newIncome.name || '',
@@ -61,10 +60,10 @@ export default function FinancePage() {
       date: newIncome.date || new Date().toISOString().split('T')[0],
       categoryId: newIncome.categoryId
     };
-    
+
     // Pasar solo los datos necesarios, el contexto agregará el id
     addIncome(incomeData);
-    
+
     // Resetear el formulario
     setNewIncome({
       name: '',
@@ -77,7 +76,7 @@ export default function FinancePage() {
 
   const handleAddBudget = () => {
     if (!newBudget.name || !newBudget.categoryId || !newBudget.amount) return;
-    
+
     // Crear el objeto sin el id primero
     const budgetData = {
       name: newBudget.name,
@@ -85,10 +84,10 @@ export default function FinancePage() {
       amount: Number(newBudget.amount),
       period: newBudget.period || 'monthly'
     };
-    
+
     // Pasar solo los datos necesarios, el contexto agregará el id
     addBudget(budgetData);
-    
+
     // Resetear el formulario
     setNewBudget({
       name: '',
@@ -97,6 +96,14 @@ export default function FinancePage() {
       period: 'monthly'
     });
   };
+  // En tu FinancePage.tsx
+  const handleDeleteIncome = (id: string) => {
+    deleteIncome(id);
+    // Fuerza una actualización del estado
+    setNewIncome({ ...newIncome }); // Esto provoca un re-render
+  };
+
+
 
   return (
     <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg">
@@ -223,8 +230,9 @@ export default function FinancePage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${income.amount.toFixed(2)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{income.date}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                
                           <button
-                            onClick={() => deleteIncome(income.id)}
+                            onClick={() => handleDeleteIncome(income.id)}
                             className="text-red-600 hover:text-red-900 mr-3"
                           >
                             Eliminar
