@@ -1,4 +1,4 @@
-'use client'; // Agrega esta directiva al inicio del archivo
+'use client';
 
 import Dashboard from './components/Dashboard';
 import ExpenseForm from './components/ExpenseForm';
@@ -9,22 +9,15 @@ import { useFinance } from './context/FinanceContext';
 export default function HomePage() {
   const { 
     expenses, 
-    monthlyIncome, 
     addExpense, 
     updateExpense,
-    handleDelete
+    deleteExpense // Cambiado de handleDelete a deleteExpense
   } = useFinance();
-
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const balance = monthlyIncome - totalExpenses;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2">
         <Dashboard 
-          balance={balance}
-          monthlyIncome={monthlyIncome}
-          totalExpenses={totalExpenses}
         />
         
         <ExpenseForm onSubmit={addExpense} />
@@ -32,15 +25,12 @@ export default function HomePage() {
         <ExpenseList 
           expenses={expenses} 
           onUpdate={updateExpense}
-          onDelete={handleDelete} 
+          onDelete={deleteExpense} 
           />
       </div>
       
       <div className="lg:col-span-1">
-        <SummaryCard 
-          expenses={expenses}
-          monthlyIncome={monthlyIncome}
-        />
+        <SummaryCard/>
       </div>
     </div>
   );

@@ -30,6 +30,24 @@ Agregado de PDF,CSV, con gastos, cuotas, resumen tarjeta.
 Metodos de ahorro.
 Aviso de limite de gastos.
 
+Para eliminar datos localmente:
+
+localStorage.clear();
+
+// Eliminar solo gastos
+localStorage.removeItem('expenses');
+
+// Eliminar solo ingresos
+localStorage.removeItem('incomes');
+
+// Eliminar solo presupuestos
+localStorage.removeItem('budgets');
+
+// Eliminar categorías
+localStorage.removeItem('categories');
+
+// Eliminar ingreso mensual
+localStorage.removeItem('monthlyIncome');
 
 -----------------------------------------------------------------------
 

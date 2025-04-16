@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { Expense } from "../lib/types";
+import { useFinance } from "../context/FinanceContext";
+import CategorySelector from "./CategorySelector";
 
 type ExpenseListProps = {
   expenses: Expense[];
@@ -8,16 +10,8 @@ type ExpenseListProps = {
   onDelete: (id: string) => void;
 };
 
-const categories = [
-  "Comida",
-  "Transporte",
-  "Entretenimiento",
-  "Servicios",
-  "Salud",
-  "Otros",
-];
-
 export default function ExpenseList({ expenses, onUpdate, onDelete }: ExpenseListProps) {
+  const { categories, getCategoriesByType } = useFinance();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentEdits, setCurrentEdits] = useState<Partial<Expense>>({});
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
@@ -28,7 +22,7 @@ export default function ExpenseList({ expenses, onUpdate, onDelete }: ExpenseLis
     setCurrentEdits({
       description: expense.description,
       amount: expense.amount,
-      category: expense.category
+      categoryId: expense.categoryId
     });
   };
 
@@ -56,6 +50,18 @@ export default function ExpenseList({ expenses, onUpdate, onDelete }: ExpenseLis
   const saveEditing = (id: string) => {
     onUpdate(id, currentEdits);
     setEditingId(null);
+  };
+
+  const getCategoryName = (categoryId?: string) => {
+    if (!categoryId) return "Sin categoría";
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name || "Sin categoría";
+  };
+
+  const getCategoryColor = (categoryId?: string) => {
+    if (!categoryId) return "#999999";
+    const category = categories.find(c => c.id === categoryId);
+    return category?.color || "#999999";
   };
 
   return (
@@ -116,23 +122,18 @@ export default function ExpenseList({ expenses, onUpdate, onDelete }: ExpenseLis
                     <input
                       type="number"
                       value={currentEdits.amount || ""}
-                      onChange={(e) => handleEditChange('amount', parseFloat(e.target.value))}
+                      onChange={(e) => handleEditChange('amount', parseFloat(e.target.value) || 0)}
                       className="p-1 border rounded w-24"
                       placeholder="Monto"
                       step="0.01"
                     />
-                    <select
-                      value={currentEdits.category || ""}
-                      onChange={(e) => handleEditChange('category', e.target.value)}
-                      className="p-1 border rounded"
-                    >
-                      <option value="">Sin categoría</option>
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="w-32">
+                      <CategorySelector
+                        value={currentEdits.categoryId || ""}
+                        onChange={(categoryId) => handleEditChange('categoryId', categoryId)}
+                        categoryType="expense"
+                      />
+                    </div>
                     <button
                       onClick={() => saveEditing(expense.id)}
                       className="px-2 py-1 bg-green-500 text-white rounded text-sm"
@@ -143,13 +144,17 @@ export default function ExpenseList({ expenses, onUpdate, onDelete }: ExpenseLis
                 ) : (
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-2 py-1 rounded text-sm ${
-                        expense.category
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
+                      className="flex items-center px-2 py-1 rounded text-sm"
+                      style={{
+                        backgroundColor: `${getCategoryColor(expense.categoryId)}20`,
+                        color: getCategoryColor(expense.categoryId)
+                      }}
                     >
-                      {expense.category || "Sin categoría"}
+                      <span 
+                        className="w-2 h-2 rounded-full mr-2" 
+                        style={{ backgroundColor: getCategoryColor(expense.categoryId) }}
+                      ></span>
+                      {getCategoryName(expense.categoryId)}
                     </span>
                     <button
                       onClick={() => startEditing(expense)}
