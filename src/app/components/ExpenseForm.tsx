@@ -1,38 +1,35 @@
-"use client";
+'use client';
+
 import { useState } from 'react';
-import { Expense } from '../lib/types';
 import { useFinance } from '../context/FinanceContext';
 import CategorySelector from './CategorySelector';
 
-type ExpenseFormProps = {
-  onSubmit: (expense: Omit<Expense, 'id'>) => void;
-};
-
-export default function ExpenseForm({ onSubmit }: ExpenseFormProps) {
-  const { getCategoriesByType } = useFinance();
+export default function ExpenseForm() {
+  const { addExpense } = useFinance();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [categoryId, setCategoryId] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!description || !amount || !date) return;
-    
-    onSubmit({
-      description,
-      amount: parseFloat(amount),
-      date,
-      categoryId
+  // En tu formulario de gastos
+const [formData, setFormData] = useState({
+  amount: 0,
+  description: '',
+  date: new Date().toISOString().split('T')[0],
+  categoryId: null as string | null // Puede ser null
+});
+
+const handleSubmit = async () => {
+  try {
+    await saveExpense({
+      ...formData,
+      categoryId: formData.categoryId || undefined // Envía undefined si es null
     });
-    
-    // Reset form
-    setDescription('');
-    setAmount('');
-    setCategoryId('');
-    setDate(new Date().toISOString().slice(0, 10));
-  };
+    // Limpiar formulario o redireccionar
+  } catch (error) {
+    console.error('Error al guardar el gasto:', error);
+  }
+};
 
   return (
     <form onSubmit={handleSubmit} className="mb-8 p-4 bg-white rounded-lg shadow">
@@ -75,10 +72,10 @@ export default function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         <div>
           <label className="block mb-2 text-sm font-medium text-gray-700">Categoría</label>
           <CategorySelector
-            value={categoryId}
-            onChange={setCategoryId}
+            value={formData.categoryId || ''}
+            onChange={(id) => setFormData({...formData, categoryId: id || null})}
             categoryType="expense"
-            includeAllOption={false}
+            required={false}
           />
         </div>
       </div>
@@ -93,3 +90,10 @@ export default function ExpenseForm({ onSubmit }: ExpenseFormProps) {
     </form>
   );
 }
+function saveExpense(arg0: {
+  categoryId: string | undefined; // Envía undefined si es null
+  amount: number; description: string; date: string;
+}) {
+  throw new Error('Function not implemented.');
+}
+

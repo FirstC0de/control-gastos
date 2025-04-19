@@ -12,13 +12,13 @@ export type Income = {
   name: string;
   type: 'monthly' | 'sales' | 'other';
   date: string;
-  categoryId?: string;
+  categoryId: string | null;
 };
 
 export type Budget = {
   id: string;
   name: string;
-  categoryId: string;
+  categoryId: string | null; // Para presupuestos mantenemos como string (requerido)
   amount: number;
   spent?: number;
   period: 'monthly' | 'weekly' | 'custom';

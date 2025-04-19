@@ -1,202 +1,182 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  Expense, 
-  Income, 
-  Budget, 
-  Category, 
+import {
+  fetchExpenses,
+  createExpense as apiCreateExpense,
+  deleteExpense as apiDeleteExpense,
+  fetchIncomes,
+  createIncome as apiCreateIncome,
+  deleteIncome as apiDeleteIncome,
+  fetchBudgets,
+  createBudget as apiCreateBudget,
+  deleteBudget as apiDeleteBudget,
+  fetchCategories,
+  createCategory as apiCreateCategory,
+  deleteCategory as apiDeleteCategory,
+  fetchMonthlyIncome,
+  updateMonthlyIncome as apiUpdateMonthlyIncome
+} from '../lib/api';
+import {
+  Expense,
+  Income,
+  Budget,
+  Category,
   CategoryType,
-  FinanceContextType 
+  FinanceContextType
 } from '../lib/types';
-import { 
-  loadExpenses, saveExpenses, 
-  loadIncomes, saveIncomes, 
-  loadBudgets, saveBudgets, 
-  loadMonthlyIncome, saveMonthlyIncome,
-  loadCategories, saveCategories
-} from '../lib/storage';
+
+const BASE = process.env.NEXT_PUBLIC_API_URL as string;
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  // Estados
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [monthlyIncome, setMonthlyIncomeState] = useState<number>(0);
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(0);
 
-  // Cargar datos iniciales
   useEffect(() => {
-    setExpenses(loadExpenses());
-    setIncomes(loadIncomes());
-    setBudgets(loadBudgets());
-    setMonthlyIncomeState(loadMonthlyIncome());
-    const loadedCategories = loadCategories();
-    setCategories(loadedCategories.length > 0 ? loadedCategories : getDefaultCategories());
+    fetchExpenses().then(setExpenses).catch(console.error);
+    fetchIncomes().then(setIncomes).catch(console.error);
+    fetchBudgets().then(setBudgets).catch(console.error);
+    fetchCategories().then(setCategories).catch(console.error);
+    fetchMonthlyIncome().then(setMonthlyIncome).catch(console.error);
   }, []);
 
-  // Guardar datos cuando cambian
-  useEffect(() => saveExpenses(expenses), [expenses]);
-  useEffect(() => saveIncomes(incomes), [incomes]);
-  useEffect(() => saveBudgets(budgets), [budgets]);
-  useEffect(() => saveCategories(categories), [categories]);
-
-  // Categorías por defecto
-  const getDefaultCategories = (): Category[] => [
-    { id: '1', name: 'Comida', color: '#4CAF50', type: 'expense' },
-    { id: '2', name: 'Transporte', color: '#2196F3', type: 'expense' },
-    { id: '3', name: 'Entretenimiento', color: '#9C27B0', type: 'expense' },
-    { id: '4', name: 'Vivienda', color: '#FF9800', type: 'expense' },
-    { id: '5', name: 'Salario', color: '#4CAF50', type: 'income' },
-    { id: '6', name: 'Inversiones', color: '#009688', type: 'income' },
-    { id: '7', name: 'Ventas', color: '#795548', type: 'income' },
-    { id: '8', name: 'Otros', color: '#607D8B', type: 'both' },
-  ];
-
-  // Métodos de categorías
-  const addCategory = (category: Omit<Category, 'id'>) => {
-    const newCategory = { ...category, id: Date.now().toString() };
-    setCategories(prev => [...prev, newCategory]);
+  // --- GASTOS ---
+  const addExpense = async (e: Omit<Expense, 'id'>) => {
+    const newExp = await apiCreateExpense(e);
+    setExpenses(prev => [...prev, newExp]);
   };
 
-  const updateCategory = (id: string, updates: Partial<Category>) => {
-    setCategories(prev =>
-      prev.map(cat => (cat.id === id ? { ...cat, ...updates } : cat))
-    );
+  const updateExpense = async (id: string, updates: Partial<Expense>) => {
+    const res = await fetch(`${BASE}/expenses/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Error al actualizar gasto');
+    const updated = await res.json();
+    setExpenses(prev => prev.map(x => x.id === id ? updated : x));
   };
 
-  const deleteCategory = (id: string) => {
-    const isUsed = expenses.some(e => e.categoryId === id) || 
-                  incomes.some(i => i.categoryId === id) ||
-                  budgets.some(b => b.categoryId === id);
-    
-    if (!isUsed) {
-      setCategories(prev => prev.filter(cat => cat.id !== id));
-    } else {
-      alert('No se puede eliminar una categoría en uso');
-    }
+  const deleteExpense = async (id: string) => {
+    await apiDeleteExpense(id);
+    setExpenses(prev => prev.filter(x => x.id !== id));
   };
 
-  const getCategoriesByType = (type: CategoryType) => {
-    return categories.filter(cat => 
-      cat.type === 'both' || cat.type === type
-    );
+  // --- INGRESOS ---
+  const addIncome = async (i: Omit<Income, 'id'>) => {
+    const newInc = await apiCreateIncome(i);
+    setIncomes(prev => [...prev, newInc]);
   };
 
-  // Métodos para Gastos
-  const addExpense = (expense: Omit<Expense, 'id'>) => {
-    const newExpense = { ...expense, id: Date.now().toString() };
-    setExpenses(prev => [...prev, newExpense]);
+  const updateIncome = async (id: string, updates: Partial<Income>) => {
+    const res = await fetch(`${BASE}/incomes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Error al actualizar ingreso');
+    const updated = await res.json();
+    setIncomes(prev => prev.map(x => x.id === id ? updated : x));
   };
 
-  const updateExpense = (id: string, updates: Partial<Expense>) => {
-    setExpenses(prev =>
-      prev.map(exp => (exp.id === id ? { ...exp, ...updates } : exp))
-    );
+  const deleteIncome = async (id: string) => {
+    await apiDeleteIncome(id);
+    setIncomes(prev => prev.filter(x => x.id !== id));
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses(prev => prev.filter(exp => exp.id !== id));
+  // --- PRESUPUESTOS ---
+  const addBudget = async (b: Omit<Budget, 'id'>) => {
+    const newBud = await apiCreateBudget(b);
+    setBudgets(prev => [...prev, newBud]);
   };
 
-  // Métodos para Ingresos
-  const addIncome = (income: Omit<Income, 'id'>) => {
-    const newIncome = { ...income, id: Date.now().toString() };
-    setIncomes(prev => [...prev, newIncome]);
+  const updateBudget = async (id: string, updates: Partial<Budget>) => {
+    const res = await fetch(`${BASE}/budgets/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Error al actualizar presupuesto');
+    const updated = await res.json();
+    setBudgets(prev => prev.map(x => x.id === id ? updated : x));
   };
 
-  const updateIncome = (id: string, updates: Partial<Income>) => {
-    setIncomes(prev =>
-      prev.map(inc => (inc.id === id ? { ...inc, ...updates } : inc))
-    );
+  const deleteBudget = async (id: string) => {
+    await apiDeleteBudget(id);
+    setBudgets(prev => prev.filter(x => x.id !== id));
   };
 
-  const deleteIncome = (id: string) => {
-    setIncomes(prev => prev.filter(income => income.id !== id));
-    // Asegúrate de que esto actualiza el localStorage también
-    saveIncomes(incomes.filter(income => income.id !== id));
+  // --- CATEGORÍAS ---
+  const addCategory = async (c: Omit<Category, 'id'>) => {
+    const newCat = await apiCreateCategory(c);
+    setCategories(prev => [...prev, newCat]);
   };
 
-  // Métodos para Presupuestos
-  const addBudget = (budget: Omit<Budget, 'id'>) => {
-    const newBudget = { ...budget, id: Date.now().toString(), spent: budget.spent || 0 };
-    setBudgets(prev => [...prev, newBudget]);
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
+    // TODO: PUT /api/categories/:id
+    setCategories(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
   };
 
-  const updateBudget = (id: string, updates: Partial<Budget>) => {
-    setBudgets(prev =>
-      prev.map(budget => (budget.id === id ? { ...budget, ...updates } : budget))
-    );
+  const deleteCategory = async (id: string) => {
+    await apiDeleteCategory(id);
+    setCategories(prev => prev.filter(x => x.id !== id));
   };
 
-  const deleteBudget = (id: string) => {
-    setBudgets(prev => prev.filter(budget => budget.id !== id));
+  // --- INGRESO MENSUAL ---
+  const setMonthly = async (amt: number) => {
+    const updatedAmt = await apiUpdateMonthlyIncome(amt);
+    setMonthlyIncome(updatedAmt);
   };
 
-  // Métodos útiles
+  // --- MÉTODOS ÚTILES ---
+  const getCategoriesByType = (type: CategoryType) =>
+    categories.filter(c => c.type === 'both' || c.type === type);
+
   const getRemainingBudget = (categoryId: string) => {
     const budget = budgets.find(b => b.categoryId === categoryId);
     if (!budget) return 0;
-    
-    const categoryExpenses = expenses
+    const spent = expenses
       .filter(e => e.categoryId === categoryId)
       .reduce((sum, e) => sum + e.amount, 0);
-      
-    return budget.amount - categoryExpenses;
+    return budget.amount - spent;
   };
 
-  const getTotalExpenses = () => {
-    return expenses.reduce((sum, e) => sum + e.amount, 0);
-  };
+  const getTotalExpenses = () =>
+    expenses.reduce((sum, e) => sum + e.amount, 0);
 
-  const getTotalIncome = () => {
-    return monthlyIncome + incomes.reduce((sum, i) => sum + i.amount, 0);
-  };
+  const getTotalIncome = () =>
+    monthlyIncome + incomes.reduce((sum, i) => sum + i.amount, 0);
 
-  const getBalance = () => {
-    return getTotalIncome() - getTotalExpenses();
-  };
-
-  const setMonthlyIncome = (amount: number) => {
-    setMonthlyIncomeState(amount);
-    saveMonthlyIncome(amount);
-  };
+  const getBalance = () =>
+    getTotalIncome() - getTotalExpenses();
 
   return (
     <FinanceContext.Provider
       value={{
-        // Datos
         expenses,
         incomes,
         budgets,
         categories,
         monthlyIncome,
-        
-        // Categorías
-        addCategory,
-        updateCategory,
-        deleteCategory,
-        getCategoriesByType,
-        
-        // Gastos
         addExpense,
         updateExpense,
         deleteExpense,
-        
-        // Ingresos
         addIncome,
         updateIncome,
         deleteIncome,
-        
-        // Presupuestos
         addBudget,
         updateBudget,
         deleteBudget,
-        setMonthlyIncome,
-        
-        // Métodos útiles
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        setMonthlyIncome: setMonthly,
+        getCategoriesByType,
         getRemainingBudget,
         getTotalExpenses,
         getTotalIncome,
@@ -210,8 +190,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
 export const useFinance = () => {
   const context = useContext(FinanceContext);
-  if (!context) {
-    throw new Error('useFinance must be used within a FinanceProvider');
-  }
+  if (!context) throw new Error('useFinance must be used within a FinanceProvider');
   return context;
 };

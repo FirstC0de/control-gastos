@@ -5,7 +5,7 @@ import { useFinance } from '../context/FinanceContext';
 import { Category } from '../lib/types';
 
 export default function CategoriesManager() {
-  const { 
+  const {
     categories,
     addCategory,
     updateCategory,
@@ -19,18 +19,21 @@ export default function CategoriesManager() {
     type: 'expense'
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.color) return;
-    
-    if (editingCategory) {
-      updateCategory(editingCategory, formData);
-    } else {
-      addCategory(formData);
+
+    try {
+      if (editingCategory) {
+        await updateCategory(editingCategory, formData);
+      } else {
+        await addCategory(formData);
+      }
+      resetForm();
+    } catch (error) {
+      console.error('Error al guardar categoría:', error);
     }
-    
-    resetForm();
   };
 
   const resetForm = () => {
@@ -40,6 +43,25 @@ export default function CategoriesManager() {
       type: 'expense'
     });
     setEditingCategory(null);
+  };
+
+  const startEdit = (category: Category) => {
+    setEditingCategory(category.id);
+    setFormData({
+      name: category.name,
+      color: category.color,
+      type: category.type
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Eliminar esta categoría?')) {
+      try {
+        await deleteCategory(id);
+      } catch (error) {
+        console.error('Error al eliminar categoría:', error);
+      }
+    }
   };
 
   return (
@@ -52,7 +74,7 @@ export default function CategoriesManager() {
           <input
             type="text"
             value={formData.name}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="w-full p-2 border rounded"
             required
           />
@@ -64,7 +86,7 @@ export default function CategoriesManager() {
             <input
               type="color"
               value={formData.color}
-              onChange={(e) => setFormData({...formData, color: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
               className="w-full h-10"
               required
             />
@@ -129,20 +151,13 @@ export default function CategoriesManager() {
               
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    setEditingCategory(category.id);
-                    setFormData({
-                      name: category.name,
-                      color: category.color,
-                      type: category.type
-                    });
-                  }}
+                  onClick={() => startEdit(category)}
                   className="text-blue-600 hover:text-blue-800 transition-colors"
                 >
                   Editar
                 </button>
                 <button
-                  onClick={() => deleteCategory(category.id)}
+                  onClick={() => handleDelete(category.id)}
                   className="text-red-600 hover:text-red-800 transition-colors"
                 >
                   Eliminar
