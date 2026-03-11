@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import { Expense } from '../../lib/types';
 import { parseStatement, ImportSummary } from '../../lib/parsers';
+import CategorySelector from '../categories/CategorySelector';
 
 
 
@@ -17,6 +18,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
     const [loadingMsg, setLoadingMsg] = useState('');
     const [selectedCard, setSelectedCard] = useState('');
     const [progress, setProgress] = useState(0);
+    const [itemCategories, setItemCategories] = useState<Record<number, string | null>>({});
     const fileRef = useRef<HTMLInputElement>(null);
 
     // ── Extraer texto con pdf.js ──────────────────────────
@@ -82,6 +84,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
             }
 
             setSummary(parsed);
+            setItemCategories({});
             setStep('review');
         } catch (err: any) {
             setError(err.message || 'No se pudo procesar el PDF.');
@@ -115,17 +118,24 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
         setStep('importing');
         setProgress(0);
 
+        const selectedIndices = summary.items.reduce<number[]>((acc, item, i) => {
+            if (item.selected) acc.push(i);
+            return acc;
+        }, []);
+
         for (let i = 0; i < toImport.length; i++) {
             const item = toImport[i];
+            const originalIndex = selectedIndices[i];
             await addExpense({
                 description: item.description,
                 amount: item.amount,
                 date: item.date,
                 cardId: selectedCard || undefined,
+                categoryId: itemCategories[originalIndex] ?? undefined,
                 installments: item.installments,
                 currentInstallment: item.currentInstallment,
                 installmentAmount: item.installmentAmount,
-                currency: item.currency, // ← faltaba esto
+                currency: item.currency,
             } as Omit<Expense, 'id'>);
             setProgress(Math.round(((i + 1) / toImport.length) * 100));
         }
@@ -229,39 +239,62 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
             {/* STEP: review */}
             {step === 'review' && summary && (
                 <div className="space-y-5">
-                    {/* Info del banco detectado */}
-                    <div className="bg-indigo-50 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-                        <div>
-                            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-                                Resumen detectado
-                            </p>
-                            <p className="text-sm font-semibold text-indigo-900 mt-0.5">
-                                {summary.bank} · {summary.cardType}
-                            </p>
-                            <p className="text-xs text-indigo-500 mt-0.5">{summary.period}</p>
+                    {/* Info del banco detectado + selector de tarjeta */}
+                    <div className="bg-indigo-50 rounded-xl px-4 py-3 space-y-3">
+                        <div className="flex items-start justify-between flex-wrap gap-3">
+                            <div>
+                                <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                                    Resumen detectado
+                                </p>
+                                <p className="text-sm font-semibold text-indigo-900 mt-0.5">
+                                    {summary.bank} · {summary.cardType}
+                                </p>
+                                <p className="text-xs text-indigo-500 mt-0.5">{summary.period}</p>
+                            </div>
+                            <div className="flex gap-4 text-right">
+                                {summary.totalARS > 0 && (
+                                    <div>
+                                        <p className="text-xs text-indigo-500">Total ARS</p>
+                                        <p className="text-sm font-bold text-indigo-800">
+                                            ${summary.totalARS.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                        </p>
+                                    </div>
+                                )}
+                                {summary.totalUSD > 0 && (
+                                    <div>
+                                        <p className="text-xs text-indigo-500">Total USD</p>
+                                        <p className="text-sm font-bold text-indigo-800">
+                                            U$D {summary.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex gap-4 text-right">
-                            {summary.totalARS > 0 && (
-                                <div>
-                                    <p className="text-xs text-indigo-500">Total ARS</p>
-                                    <p className="text-sm font-bold text-indigo-800">
-                                        ${summary.totalARS.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                            )}
-                            {summary.totalUSD > 0 && (
-                                <div>
-                                    <p className="text-xs text-indigo-500">Total USD</p>
-                                    <p className="text-sm font-bold text-indigo-800">
-                                        U$D {summary.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
+                        {/* Selector de tarjeta en el paso de revisión */}
+                        <div className="border-t border-indigo-100 pt-3">
+                            <label className="block text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1.5">
+                                Asociar a tarjeta
+                            </label>
+                            <select
+                                value={selectedCard}
+                                onChange={e => setSelectedCard(e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-indigo-200 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="">Sin tarjeta específica</option>
+                                {cards.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                            {!selectedCard && (
+                                <p className="text-xs text-amber-600 mt-1.5">
+                                    ⚠️ Sin tarjeta seleccionada, los gastos no aparecerán en el resumen por tarjeta.
+                                </p>
                             )}
                         </div>
                     </div>
 
                     {/* Controles */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center gap-3">
                         <div className="flex gap-2">
                             <button onClick={() => toggleAll(true)}
                                 className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
@@ -272,7 +305,26 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                 Ninguno
                             </button>
                         </div>
-                        <span className="text-xs text-slate-500">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs text-slate-500 shrink-0">Categoría para seleccionados:</span>
+                            <CategorySelector
+                                value={null}
+                                onChange={id => {
+                                    if (!summary) return;
+                                    setItemCategories(prev => {
+                                        const next = { ...prev };
+                                        summary.items.forEach((item, i) => {
+                                            if (item.selected) next[i] = id;
+                                        });
+                                        return next;
+                                    });
+                                }}
+                                categoryType="expense"
+                                className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                showManageButton={false}
+                            />
+                        </div>
+                        <span className="text-xs text-slate-500 shrink-0">
                             {selectedCount} de {summary.items.length} seleccionados
                         </span>
                     </div>
@@ -286,6 +338,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Descripción</th>
                                     <th className="px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Cuota</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoría</th>
                                     <th className="px-3 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Monto</th>
                                 </tr>
                             </thead>
@@ -324,7 +377,17 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-3 py-3 text-right text-sm font-semibold text-slate-900 whitespace-nowrap">
+                                        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                                            <CategorySelector
+                                                value={itemCategories[i] ?? null}
+                                                onChange={id => setItemCategories(prev => ({ ...prev, [i]: id }))}
+                                                categoryType="expense"
+                                                className="w-36 px-2 py-1 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                showManageButton={false}
+                                            />
+                                        </td>
+                                        <td className="px-3 py-3 text-right text-sm font-semibold whitespace-nowrap"
+                                            style={{ color: item.currency === 'USD' ? '#059669' : '#0f172a' }}>
                                             {item.currency === 'USD' ? 'U$D ' : '$'}
                                             {item.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                         </td>
@@ -336,7 +399,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
 
                     {/* Acciones */}
                     <div className="flex justify-between items-center pt-1">
-                        <button onClick={() => { setStep('upload'); setSummary(null); }}
+                        <button onClick={() => { setStep('upload'); setSummary(null); setItemCategories({}); }}
                             className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
                             ← Volver
                         </button>
