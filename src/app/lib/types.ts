@@ -14,6 +14,7 @@ export type Expense = {
   comprobante?: string;
   recurring?: boolean;
   recurringDay?: number;
+  monthYear?: string; // "YYYY-MM" — mes al que pertenece el gasto en el dashboard
 };
 
 export type Card = {

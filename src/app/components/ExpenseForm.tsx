@@ -37,6 +37,7 @@ export default function ExpenseForm() {
     if (!formData.description || formData.amount <= 0) return;
     setLoading(true);
     try {
+      const monthYear = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}`;
       await addExpense({
         description:        formData.description,
         amount:             formData.amount,
@@ -49,6 +50,7 @@ export default function ExpenseForm() {
         currency:           formData.currency,
         recurring:          formData.recurring || undefined,
         recurringDay:       formData.recurring ? formData.recurringDay : undefined,
+        monthYear,
       });
       setFormData({
         description: '', amount: 0,

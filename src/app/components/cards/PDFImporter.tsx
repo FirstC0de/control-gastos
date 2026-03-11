@@ -9,7 +9,7 @@ import CategorySelector from '../categories/CategorySelector';
 
 
 export default function PDFImporter({ onClose }: { onClose?: () => void }) {
-    const { addExpense, cards, expenses } = useFinance();
+    const { addExpense, cards, expenses, selectedMonth } = useFinance();
 
     const [step, setStep] = useState<'upload' | 'review' | 'importing' | 'done'>('upload');
     const [summary, setSummary] = useState<ImportSummary | null>(null);
@@ -135,6 +135,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
         for (let i = 0; i < toImport.length; i++) {
             const item = toImport[i];
             const originalIndex = selectedIndices[i];
+            const importMonthYear = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}`;
             await addExpense({
                 description: item.description,
                 amount: item.amount,
@@ -146,6 +147,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                 installmentAmount: item.installmentAmount,
                 currency: item.currency,
                 comprobante: item.comprobante || undefined,
+                monthYear: importMonthYear,
             } as Omit<Expense, 'id'>);
             setProgress(Math.round(((i + 1) / toImport.length) * 100));
         }

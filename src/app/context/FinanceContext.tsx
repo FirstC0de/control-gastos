@@ -89,6 +89,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const monthlyExpenses = useMemo(() => {
     const { year, month } = selectedMonth;
+    const key = `${year}-${String(month + 1).padStart(2, '0')}`;
     return expenses.reduce<Expense[]>((acc, e) => {
       if (e.recurring) {
         const d = new Date(e.date + 'T12:00:00');
@@ -96,12 +97,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           const day = e.recurringDay ?? d.getDate();
           acc.push({
             ...e,
-            date: `${year}-${String(month + 1).padStart(2, '0')}-${String(Math.min(day, 28)).padStart(2, '0')}`,
+            date: `${key}-${String(Math.min(day, 28)).padStart(2, '0')}`,
           });
         }
       } else {
-        const d = new Date(e.date + 'T12:00:00');
-        if (d.getFullYear() === year && d.getMonth() === month) acc.push(e);
+        // Usar monthYear si existe (gastos importados de PDF), sino usar date
+        const filterKey = e.monthYear ?? e.date.substring(0, 7);
+        if (filterKey === key) acc.push(e);
       }
       return acc;
     }, []);
