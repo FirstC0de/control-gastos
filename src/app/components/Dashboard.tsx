@@ -9,7 +9,7 @@ import ExchangeRateBadge from './ui/ExchangeRateBadge';
 type ViewMode = 'combinado' | 'separado';
 
 export default function Dashboard() {
-  const { expenses, incomes, getTotalExpenses, getTotalIncome, getBalance } = useFinance();
+  const { expenses, incomes } = useFinance();
   const { blue } = useExchangeRate();
   const [modalOpen, setModalOpen] = useState(false);
   const [viewMode, setViewMode]   = useState<ViewMode>('combinado');
@@ -23,8 +23,8 @@ export default function Dashboard() {
   const totalCombinado_exp = totalARS_exp + totalUSD_exp_conv;
 
   // ── Ingresos ──────────────────────────────────────────
-  const incomesARS      = incomes.filter(i => (i as any).currency !== 'USD');
-  const incomesUSD      = incomes.filter(i => (i as any).currency === 'USD');
+  const incomesARS      = incomes.filter(i => i.currency !== 'USD');
+  const incomesUSD      = incomes.filter(i => i.currency === 'USD');
   const totalARS_inc    = incomesARS.reduce((s, i) => s + i.amount, 0);
   const totalUSD_inc    = incomesUSD.reduce((s, i) => s + i.amount, 0);
   const totalUSD_inc_conv = totalUSD_inc * (blue || 0);

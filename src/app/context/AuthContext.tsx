@@ -56,9 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   try {
     const { user } = await signInWithEmailAndPassword(auth, email, password);
     await createSession(user);
-  } catch (err: any) {
-    console.log('Código de error:', err.code);    // ← agregá esto
-    console.log('Mensaje:', err.message);          // ← y esto
+  } catch (err: unknown) {
     throw err;
   }
 };

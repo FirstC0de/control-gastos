@@ -30,8 +30,8 @@ const btnClass = "flex w-full justify-center rounded-xl bg-indigo-600 px-4 py-2.
     try {
       await login(email, password);
       router.push('/');
-    } catch (err: any) {
-      setError(getFirebaseError(err.code));
+    } catch (err: unknown) {
+      setError(getFirebaseError((err as { code: string }).code));
     } finally {
       setLoading(false);
     }

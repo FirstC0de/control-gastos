@@ -192,14 +192,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   // Lógica de cuotas — cuánto pagar en un mes dado
   const getInstallmentSummary = (year: number, month: number) => {
     // month es 0-indexed (igual que Date)
-    const targetDate = new Date(year, month, 1);
-
-
-
     return expenses.reduce((acc, expense) => {
       const expenseDate = new Date(expense.date);
       const inst = expense.installments ?? 1;
-      const current = expense.currentInstallment ?? 1;
       const instAmount = expense.installmentAmount ?? expense.amount;
 
 
@@ -215,7 +210,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           (year - expenseDate.getFullYear()) * 12 +
           (month - expenseDate.getMonth());
 
-        const installmentIndex = current + monthsDiff; // cuota que cae en ese mes
+        const installmentIndex = (expense.currentInstallment ?? 1) + monthsDiff; // cuota que cae en ese mes
         if (installmentIndex >= 1 && installmentIndex <= inst) {
           acc.installments += instAmount;
           acc.installmentItems.push({

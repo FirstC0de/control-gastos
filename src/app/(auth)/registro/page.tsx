@@ -49,8 +49,8 @@ export default function RegisterPage() {
         await updateProfile(auth.currentUser, { displayName: name });
       }
       router.push('/');
-    } catch (err: any) {
-      setError(getFirebaseError(err.code));
+    } catch (err: unknown) {
+      setError(getFirebaseError((err as { code: string }).code));
     } finally {
       setLoading(false);
     }
