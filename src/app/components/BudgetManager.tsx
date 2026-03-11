@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { Budget } from '../lib/types';
-import CategorySelector from './CategorySelector';
+import CategorySelector from './categories/CategorySelector';
+import { ToastContainer, useToast } from './ui/Toast';
+import ConfirmModal from './ui/ConfirmModal';
 
 export default function BudgetManager() {
   const {
@@ -15,6 +17,8 @@ export default function BudgetManager() {
     deleteBudget,
   } = useFinance();
 
+
+
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [formData, setFormData] = useState<Omit<Budget, 'id'>>({
     name: '',
@@ -24,21 +28,27 @@ export default function BudgetManager() {
     spent: 0
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { toasts, show, remove } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name || !formData.categoryId || !formData.amount) return;
 
-    if (editingBudget) {
-      updateBudget(editingBudget.id, formData);
-    } else {
-      addBudget({
-        ...formData,
-        spent: 0
-      });
+    try {
+      if (editingBudget) {
+        await updateBudget(editingBudget.id, formData);
+      } else {
+        await addBudget({
+          ...formData,
+          spent: 0
+        });
+      }
+      resetForm();
+    } catch (error) {
+      console.error('Error al guardar presupuesto:', error);
     }
-
-    resetForm();
   };
 
   const resetForm = () => {
@@ -50,6 +60,28 @@ export default function BudgetManager() {
       spent: 0
     });
     setEditingBudget(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      await deleteBudget(deletingId);
+      show('Presupuesto eliminado', 'warning');
+      setDeletingId(null);
+    } catch {
+      show('Error al eliminar', 'error');
+    }
+  };
+
+  const startEdit = (budget: Budget) => {
+    setEditingBudget(budget);
+    setFormData({
+      name: budget.name,
+      categoryId: budget.categoryId,
+      amount: budget.amount,
+      period: budget.period,
+      spent: budget.spent || 0
+    });
   };
 
   return (
@@ -72,10 +104,11 @@ export default function BudgetManager() {
         <div>
           <label className="block mb-1 font-medium">Categoría</label>
           <CategorySelector
-            value={formData.categoryId}
-            onChange={(categoryId) => setFormData({ ...formData, categoryId })}
+            value={formData.categoryId ?? null}
+            onChange={id => setFormData({ ...formData, categoryId: id })}
             categoryType="expense"
             required
+            showManageButton={false}
           />
         </div>
 
@@ -145,12 +178,12 @@ export default function BudgetManager() {
               const percentageUsed = budget.amount > 0 ? (totalSpent / budget.amount) * 100 : 0;
 
               return (
-                <div 
-                  key={budget.id} 
+                <div
+                  key={budget.id}
                   className="p-3 border rounded-lg"
-                  style={{ 
-                    borderLeftColor: category?.color, 
-                    borderLeftWidth: '4px' 
+                  style={{
+                    borderLeftColor: category?.color,
+                    borderLeftWidth: '4px'
                   }}
                 >
                   <div className="flex justify-between items-start">
@@ -159,18 +192,17 @@ export default function BudgetManager() {
                       <p className="text-sm text-gray-500">
                         {category?.name || 'Sin categoría'} • ${budget.amount.toFixed(2)} {budget.period === 'monthly' ? '/mes' : budget.period === 'weekly' ? '/sem' : '/personalizado'}
                       </p>
-                      
+
                       {/* Barra de progreso */}
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            percentageUsed > 80 ? 'bg-red-500' : 
+                        <div
+                          className={`h-2 rounded-full ${percentageUsed > 80 ? 'bg-red-500' :
                             percentageUsed > 50 ? 'bg-yellow-500' : 'bg-green-500'
-                          }`}
+                            }`}
                           style={{ width: `${Math.min(100, percentageUsed)}%` }}
                         ></div>
                       </div>
-                      
+
                       <div className="flex justify-between text-sm mt-1">
                         <span>Gastado: ${totalSpent.toFixed(2)}</span>
                         <span className={remaining >= 0 ? 'text-green-600' : 'text-red-600'}>
@@ -179,30 +211,17 @@ export default function BudgetManager() {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          setEditingBudget(budget);
-                          setFormData({
-                            name: budget.name,
-                            categoryId: budget.categoryId,
-                            amount: budget.amount,
-                            period: budget.period,
-                            spent: budget.spent || 0
-                          });
-                        }}
+                        onClick={() => startEdit(budget)}
                         className="text-blue-600 hover:text-blue-800 transition-colors"
                         aria-label="Editar presupuesto"
                       >
                         Editar
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar el presupuesto "${budget.name}"?`)) {
-                            deleteBudget(budget.id);
-                          }
-                        }}
+                        onClick={() => setDeletingId(budget.id)}
                         className="text-red-600 hover:text-red-800 transition-colors"
                         aria-label="Eliminar presupuesto"
                       >
@@ -210,6 +229,11 @@ export default function BudgetManager() {
                       </button>
                     </div>
                   </div>
+
+                  <ConfirmModal isOpen={!!deletingId} title="Eliminar presupuesto"
+                    message="¿Eliminar este presupuesto?" confirmLabel="Eliminar" danger
+                    onConfirm={handleDelete} onCancel={() => setDeletingId(null)} />
+                  <ToastContainer toasts={toasts} onRemove={remove} />
                 </div>
               );
             })}

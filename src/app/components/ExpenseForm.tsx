@@ -1,93 +1,144 @@
-"use client";
+'use client';
+
 import { useState } from 'react';
-import { Expense } from '../lib/types';
 import { useFinance } from '../context/FinanceContext';
-import CategorySelector from './CategorySelector';
+import CategorySelector from './categories/CategorySelector';
+import { Currency } from '../lib/types';
 
-type ExpenseFormProps = {
-  onSubmit: (expense: Omit<Expense, 'id'>) => void;
-};
+export default function ExpenseForm() {
+  const { addExpense, cards } = useFinance();
+  const [formData, setFormData] = useState({
+    description:  '',
+    amount:       0,
+    date:         new Date().toISOString().split('T')[0],
+    categoryId:   null as string | null,
+    cardId:       null as string | null,
+    installments: 1,
+    currency:     'ARS' as Currency, // ← estaba faltando
+  });
+  const [loading, setLoading] = useState(false);
 
-export default function ExpenseForm({ onSubmit }: ExpenseFormProps) {
-  const { getCategoriesByType } = useFinance();
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [categoryId, setCategoryId] = useState('');
+  const installmentAmount = formData.installments > 1
+    ? formData.amount / formData.installments
+    : formData.amount;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!description || !amount || !date) return;
-    
-    onSubmit({
-      description,
-      amount: parseFloat(amount),
-      date,
-      categoryId
-    });
-    
-    // Reset form
-    setDescription('');
-    setAmount('');
-    setCategoryId('');
-    setDate(new Date().toISOString().slice(0, 10));
+    if (!formData.description || formData.amount <= 0) return;
+    setLoading(true);
+    try {
+      await addExpense({
+        description:        formData.description,
+        amount:             formData.amount,
+        date:               formData.date,
+        categoryId:         formData.categoryId ?? undefined,
+        cardId:             formData.cardId ?? undefined,
+        installments:       formData.installments,
+        currentInstallment: 1,
+        installmentAmount:  parseFloat(installmentAmount.toFixed(2)),
+        currency:           formData.currency,
+      });
+      setFormData({
+        description: '', amount: 0,
+        date:        new Date().toISOString().split('T')[0],
+        categoryId:  null, cardId: null, installments: 1,
+        currency:    'ARS',
+      });
+    } catch (error) {
+      console.error('Error al guardar el gasto:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow";
+  const labelClass = "block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5";
+
   return (
-    <form onSubmit={handleSubmit} className="mb-8 p-4 bg-white rounded-lg shadow">
-      <h2 className="text-xl font-semibold mb-4">Agregar Gasto</h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label className="block mb-2 text-sm font-medium text-gray-700">Descripción</label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="¿En qué gastaste?"
-            required
-          />
-        </div>
-        <div>
-          <label className="block mb-2 text-sm font-medium text-gray-700">Monto</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            required
-          />
-        </div>
-        <div>
-          <label className="block mb-2 text-sm font-medium text-gray-700">Fecha</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <div>
-          <label className="block mb-2 text-sm font-medium text-gray-700">Categoría</label>
-          <CategorySelector
-            value={categoryId}
-            onChange={setCategoryId}
-            categoryType="expense"
-            includeAllOption={false}
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-base font-semibold text-slate-900">Nuevo gasto</h2>
+        {formData.installments > 1 && formData.amount > 0 && (
+          <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+            {formData.installments} cuotas de {formData.currency === 'USD' ? 'U$D' : '$'}{installmentAmount.toFixed(2)}
+          </span>
+        )}
       </div>
-      <div className="mt-4 flex justify-end">
-        <button
-          type="submit"
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Agregar Gasto
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        {/* Descripción */}
+        <div className="lg:col-span-1">
+          <label className={labelClass}>Descripción *</label>
+          <input type="text" value={formData.description}
+            onChange={e => setFormData({ ...formData, description: e.target.value })}
+            className={inputClass} placeholder="¿En qué gastaste?" required />
+        </div>
+
+        {/* Monto + Moneda juntos */}
+        <div>
+          <label className={labelClass}>Monto total *</label>
+          <div className="flex gap-2">
+            <select value={formData.currency}
+              onChange={e => setFormData({ ...formData, currency: e.target.value as Currency })}
+              className="px-2 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0">
+              <option value="ARS">$</option>
+              <option value="USD">U$D</option>
+            </select>
+            <input type="number" value={formData.amount || ''}
+              onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+              className={inputClass} step="0.01" min="0" placeholder="0.00" required />
+          </div>
+        </div>
+
+        {/* Cuotas */}
+        <div>
+          <label className={labelClass}>Cuotas</label>
+          <select value={formData.installments}
+            onChange={e => setFormData({ ...formData, installments: Number(e.target.value) })}
+            className={inputClass}>
+            <option value={1}>Contado</option>
+            {[2, 3, 6, 9, 12, 18, 24].map(n => (
+              <option key={n} value={n}>{n} cuotas</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Fecha */}
+        <div>
+          <label className={labelClass}>Fecha *</label>
+          <input type="date" value={formData.date}
+            onChange={e => setFormData({ ...formData, date: e.target.value })}
+            className={inputClass} required />
+        </div>
+
+        {/* Tarjeta */}
+        <div>
+          <label className={labelClass}>Tarjeta</label>
+          <select value={formData.cardId || ''}
+            onChange={e => setFormData({ ...formData, cardId: e.target.value || null })}
+            className={inputClass}>
+            <option value="">Sin tarjeta / Efectivo</option>
+            {cards.map(card => (
+              <option key={card.id} value={card.id}>{card.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Categoría */}
+        <div>
+          <label className={labelClass}>Categoría</label>
+          <CategorySelector value={formData.categoryId}
+            onChange={id => setFormData({ ...formData, categoryId: id })}
+            categoryType="expense" className={inputClass} />
+        </div>
+
+      </div>
+
+      <div className="mt-5 flex justify-end">
+        <button type="submit" disabled={loading}
+          className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 transition-colors">
+          {loading ? 'Guardando...' : '+ Agregar gasto'}
         </button>
       </div>
     </form>

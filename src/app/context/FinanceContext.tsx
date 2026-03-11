@@ -1,206 +1,291 @@
 'use client';
-
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  Expense, 
-  Income, 
-  Budget, 
-  Category, 
+import { useExchangeRate } from './ExchangeRateContext';
+import {
+  fetchExpenses,
+  createExpense as apiCreateExpense,
+  updateExpense as apiUpdateExpense,   // ← nuevo
+  deleteExpense as apiDeleteExpense,
+  fetchIncomes,
+  createIncome as apiCreateIncome,
+  updateIncome as apiUpdateIncome,     // ← nuevo
+  deleteIncome as apiDeleteIncome,
+  fetchBudgets,
+  createBudget as apiCreateBudget,
+  updateBudget as apiUpdateBudget,     // ← nuevo
+  deleteBudget as apiDeleteBudget,
+  fetchCategories,
+  createCategory as apiCreateCategory,
+  updateCategory as apiUpdateCategory, // ← nuevo
+  deleteCategory as apiDeleteCategory,
+  fetchMonthlyIncome,
+  updateMonthlyIncome as apiUpdateMonthlyIncome,
+  fetchCards,
+  createCard as apiCreateCard,
+  updateCard as apiUpdateCard,
+  deleteCard as apiDeleteCard,
+} from '../lib/api';
+import {
+  Expense,
+  Income,
+  Budget,
+  Category,
   CategoryType,
-  FinanceContextType 
+  FinanceContextType,
+  Card,
+  Currency
 } from '../lib/types';
-import { 
-  loadExpenses, saveExpenses, 
-  loadIncomes, saveIncomes, 
-  loadBudgets, saveBudgets, 
-  loadMonthlyIncome, saveMonthlyIncome,
-  loadCategories, saveCategories
-} from '../lib/storage';
+
+
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  // Estados
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [monthlyIncome, setMonthlyIncomeState] = useState<number>(0);
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(0);
+  const [cards, setCards] = useState<Card[]>([]);
+  const { blue } = useExchangeRate();
 
-  // Cargar datos iniciales
   useEffect(() => {
-    setExpenses(loadExpenses());
-    setIncomes(loadIncomes());
-    setBudgets(loadBudgets());
-    setMonthlyIncomeState(loadMonthlyIncome());
-    const loadedCategories = loadCategories();
-    setCategories(loadedCategories.length > 0 ? loadedCategories : getDefaultCategories());
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchExpenses().then(setExpenses).catch(console.error);
+        fetchIncomes().then(setIncomes).catch(console.error);
+        fetchBudgets().then(setBudgets).catch(console.error);
+        fetchCategories().then(setCategories).catch(console.error);
+        fetchMonthlyIncome().then(setMonthlyIncome).catch(console.error);
+        fetchCards().then(setCards).catch(console.error);
+      } else {
+        setExpenses([]);
+        setIncomes([]);
+        setBudgets([]);
+        setCategories([]);
+        setMonthlyIncome(0);
+        setCards([]);
+      }
+
+
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Guardar datos cuando cambian
-  useEffect(() => saveExpenses(expenses), [expenses]);
-  useEffect(() => saveIncomes(incomes), [incomes]);
-  useEffect(() => saveBudgets(budgets), [budgets]);
-  useEffect(() => saveCategories(categories), [categories]);
 
-  // Categorías por defecto
-  const getDefaultCategories = (): Category[] => [
-    { id: '1', name: 'Comida', color: '#4CAF50', type: 'expense' },
-    { id: '2', name: 'Transporte', color: '#2196F3', type: 'expense' },
-    { id: '3', name: 'Entretenimiento', color: '#9C27B0', type: 'expense' },
-    { id: '4', name: 'Vivienda', color: '#FF9800', type: 'expense' },
-    { id: '5', name: 'Salario', color: '#4CAF50', type: 'income' },
-    { id: '6', name: 'Inversiones', color: '#009688', type: 'income' },
-    { id: '7', name: 'Ventas', color: '#795548', type: 'income' },
-    { id: '8', name: 'Otros', color: '#607D8B', type: 'both' },
-  ];
+  // Convertir un monto a ARS usando dólar blue
+  const toARS = (amount: number, currency: Currency = 'ARS'): number =>
+    currency === 'USD' ? amount * (blue || 1) : amount;
 
-  // Métodos de categorías
-  const addCategory = (category: Omit<Category, 'id'>) => {
-    const newCategory = { ...category, id: Date.now().toString() };
-    setCategories(prev => [...prev, newCategory]);
+  // CRUD de tarjetas
+  const addCard = async (c: Omit<Card, 'id'>) => {
+    const newCard = await apiCreateCard(c);
+    setCards(prev => [...prev, newCard]);
   };
 
-  const updateCategory = (id: string, updates: Partial<Category>) => {
-    setCategories(prev =>
-      prev.map(cat => (cat.id === id ? { ...cat, ...updates } : cat))
-    );
+  const updateCard = async (id: string, updates: Partial<Card>) => {
+    const updated = await apiUpdateCard(id, updates);
+    setCards(prev => prev.map(x => x.id === id ? updated : x));
   };
 
-  const deleteCategory = (id: string) => {
-    const isUsed = expenses.some(e => e.categoryId === id) || 
-                  incomes.some(i => i.categoryId === id) ||
-                  budgets.some(b => b.categoryId === id);
-    
-    if (!isUsed) {
-      setCategories(prev => prev.filter(cat => cat.id !== id));
-    } else {
-      alert('No se puede eliminar una categoría en uso');
-    }
+  const deleteCard = async (id: string) => {
+    await apiDeleteCard(id);
+    setCards(prev => prev.filter(x => x.id !== id));
   };
 
-  const getCategoriesByType = (type: CategoryType) => {
-    return categories.filter(cat => 
-      cat.type === 'both' || cat.type === type
-    );
+
+  // --- GASTOS ---
+  const addExpense = async (e: Omit<Expense, 'id'>) => {
+    const newExp = await apiCreateExpense(e);
+    setExpenses(prev => [...prev, newExp]);
   };
 
-  // Métodos para Gastos
-  const addExpense = (expense: Omit<Expense, 'id'>) => {
-    const newExpense = { ...expense, id: Date.now().toString() };
-    setExpenses(prev => [...prev, newExpense]);
+  const updateExpense = async (id: string, updates: Partial<Expense>) => {
+    const updated = await apiUpdateExpense(id, updates); // ← viene de lib/api.ts
+    setExpenses(prev => prev.map(x => x.id === id ? updated : x));
   };
 
-  const updateExpense = (id: string, updates: Partial<Expense>) => {
-    setExpenses(prev =>
-      prev.map(exp => (exp.id === id ? { ...exp, ...updates } : exp))
-    );
+  const deleteExpense = async (id: string) => {
+    await apiDeleteExpense(id);
+    setExpenses(prev => prev.filter(x => x.id !== id));
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses(prev => prev.filter(exp => exp.id !== id));
+  // --- INGRESOS ---
+  const addIncome = async (i: Omit<Income, 'id'>) => {
+    const newInc = await apiCreateIncome(i);
+    setIncomes(prev => [...prev, newInc]);
   };
 
-  // Métodos para Ingresos
-  const addIncome = (income: Omit<Income, 'id'>) => {
-    const newIncome = { ...income, id: Date.now().toString() };
-    setIncomes(prev => [...prev, newIncome]);
+  const updateIncome = async (id: string, updates: Partial<Income>) => {
+    const updated = await apiUpdateIncome(id, updates);
+    setIncomes(prev => prev.map(x => x.id === id ? updated : x));
   };
 
-  const updateIncome = (id: string, updates: Partial<Income>) => {
-    setIncomes(prev =>
-      prev.map(inc => (inc.id === id ? { ...inc, ...updates } : inc))
-    );
+  const deleteIncome = async (id: string) => {
+    await apiDeleteIncome(id);
+    setIncomes(prev => prev.filter(x => x.id !== id));
   };
 
-  const deleteIncome = (id: string) => {
-    setIncomes(prev => prev.filter(income => income.id !== id));
-    // Asegúrate de que esto actualiza el localStorage también
-    saveIncomes(incomes.filter(income => income.id !== id));
+  // --- PRESUPUESTOS ---
+  const addBudget = async (b: Omit<Budget, 'id'>) => {
+    const newBud = await apiCreateBudget(b);
+    setBudgets(prev => [...prev, newBud]);
   };
 
-  // Métodos para Presupuestos
-  const addBudget = (budget: Omit<Budget, 'id'>) => {
-    const newBudget = { ...budget, id: Date.now().toString(), spent: budget.spent || 0 };
-    setBudgets(prev => [...prev, newBudget]);
+  const updateBudget = async (id: string, updates: Partial<Budget>) => {
+    const updated = await apiUpdateBudget(id, updates);
+    setBudgets(prev => prev.map(x => x.id === id ? updated : x));
   };
 
-  const updateBudget = (id: string, updates: Partial<Budget>) => {
-    setBudgets(prev =>
-      prev.map(budget => (budget.id === id ? { ...budget, ...updates } : budget))
-    );
+  const deleteBudget = async (id: string) => {
+    await apiDeleteBudget(id);
+    setBudgets(prev => prev.filter(x => x.id !== id));
   };
 
-  const deleteBudget = (id: string) => {
-    setBudgets(prev => prev.filter(budget => budget.id !== id));
+  // --- CATEGORÍAS ---
+  const addCategory = async (c: Omit<Category, 'id'>) => {
+    const newCat = await apiCreateCategory(c);
+    setCategories(prev => [...prev, newCat]);
   };
 
-  // Métodos útiles
+  // Y updateCategory que antes no persistía:
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
+    const updated = await apiUpdateCategory(id, updates); // ← ahora sí persiste
+    setCategories(prev => prev.map(x => x.id === id ? updated : x));
+  };
+
+  const deleteCategory = async (id: string) => {
+    await apiDeleteCategory(id);
+    setCategories(prev => prev.filter(x => x.id !== id));
+  };
+
+  // --- INGRESO MENSUAL ---
+  const setMonthly = async (amt: number) => {
+    const updatedAmt = await apiUpdateMonthlyIncome(amt);
+    setMonthlyIncome(updatedAmt);
+  };
+
+  // --- MÉTODOS ÚTILES ---
+  const getCategoriesByType = (type: CategoryType) =>
+    categories.filter(c => c.type === 'both' || c.type === type);
+
   const getRemainingBudget = (categoryId: string) => {
     const budget = budgets.find(b => b.categoryId === categoryId);
     if (!budget) return 0;
-    
-    const categoryExpenses = expenses
+    const spent = expenses
       .filter(e => e.categoryId === categoryId)
       .reduce((sum, e) => sum + e.amount, 0);
-      
-    return budget.amount - categoryExpenses;
+    return budget.amount - spent;
   };
 
-  const getTotalExpenses = () => {
-    return expenses.reduce((sum, e) => sum + e.amount, 0);
+  const getTotalExpenses = (): number =>
+    expenses.reduce((sum, e) => sum + toARS(e.amount, e.currency ?? 'ARS'), 0);
+
+  const getTotalIncome = (): number =>
+    incomes.reduce((sum, i) => sum + toARS(i.amount, i.currency ?? 'ARS'), 0);
+
+  const getBalance = (): number => getTotalIncome() - getTotalExpenses();
+
+  // Lógica de cuotas — cuánto pagar en un mes dado
+  const getInstallmentSummary = (year: number, month: number) => {
+    // month es 0-indexed (igual que Date)
+    const targetDate = new Date(year, month, 1);
+
+
+
+    return expenses.reduce((acc, expense) => {
+      const expenseDate = new Date(expense.date);
+      const inst = expense.installments ?? 1;
+      const current = expense.currentInstallment ?? 1;
+      const instAmount = expense.installmentAmount ?? expense.amount;
+
+
+      if (inst === 1) {
+        // Contado: solo aparece en su mes
+        if (expenseDate.getFullYear() === year && expenseDate.getMonth() === month) {
+          acc.cash += expense.amount;
+          acc.cashItems.push(expense);
+        }
+      } else {
+        // Cuotas: calcular cuál cuota cae en targetDate
+        const monthsDiff =
+          (year - expenseDate.getFullYear()) * 12 +
+          (month - expenseDate.getMonth());
+
+        const installmentIndex = current + monthsDiff; // cuota que cae en ese mes
+        if (installmentIndex >= 1 && installmentIndex <= inst) {
+          acc.installments += instAmount;
+          acc.installmentItems.push({
+            ...expense,
+            currentInstallment: installmentIndex,
+          });
+        }
+      }
+      return acc;
+    }, {
+      cash: 0,
+      installments: 0,
+      cashItems: [] as Expense[],
+      installmentItems: [] as (Expense & { currentInstallment: number })[],
+    });
   };
 
-  const getTotalIncome = () => {
-    return monthlyIncome + incomes.reduce((sum, i) => sum + i.amount, 0);
+
+  // Proyección de los próximos N meses
+  const getMonthlyProjection = (months: number = 6) => {
+    const now = new Date();
+    return Array.from({ length: months }, (_, i) => {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const label = date.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+      const summary = getInstallmentSummary(date.getFullYear(), date.getMonth());
+      return {
+        label,
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        total: summary.cash + summary.installments,
+        cash: summary.cash,
+        installments: summary.installments,
+      };
+    });
   };
 
-  const getBalance = () => {
-    return getTotalIncome() - getTotalExpenses();
-  };
-
-  const setMonthlyIncome = (amount: number) => {
-    setMonthlyIncomeState(amount);
-    saveMonthlyIncome(amount);
-  };
 
   return (
     <FinanceContext.Provider
       value={{
-        // Datos
+        cards,
+        addCard,
+        updateCard,
+        deleteCard,
+        getInstallmentSummary,
+        getMonthlyProjection,
         expenses,
         incomes,
         budgets,
         categories,
         monthlyIncome,
-        
-        // Categorías
-        addCategory,
-        updateCategory,
-        deleteCategory,
-        getCategoriesByType,
-        
-        // Gastos
         addExpense,
         updateExpense,
         deleteExpense,
-        
-        // Ingresos
         addIncome,
         updateIncome,
         deleteIncome,
-        
-        // Presupuestos
         addBudget,
         updateBudget,
         deleteBudget,
-        setMonthlyIncome,
-        
-        // Métodos útiles
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        setMonthlyIncome: setMonthly,
+        getCategoriesByType,
         getRemainingBudget,
         getTotalExpenses,
         getTotalIncome,
-        getBalance
+        getBalance,
+
       }}
     >
       {children}
@@ -210,8 +295,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
 export const useFinance = () => {
   const context = useContext(FinanceContext);
-  if (!context) {
-    throw new Error('useFinance must be used within a FinanceProvider');
-  }
+  if (!context) throw new Error('useFinance must be used within a FinanceProvider');
   return context;
 };
