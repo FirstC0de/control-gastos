@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useFinance } from '../../context/FinanceContext';
 import { Category, CategoryType } from '../../lib/types';
 import CategoryForm from './CategoryForm';
@@ -104,9 +105,9 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
@@ -256,6 +257,7 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
       />
 
       <ToastContainer toasts={toasts} onRemove={remove} />
-    </>
+    </>,
+    document.body
   );
 }

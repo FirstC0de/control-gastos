@@ -189,14 +189,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const getBalance = (): number => getTotalIncome() - getTotalExpenses();
 
-  // Lógica de cuotas — cuánto pagar en un mes dado
-  const getInstallmentSummary = (year: number, month: number) => {
+  // Lógica de cuotas — cuánto pagar en un mes dado, opcionalmente filtrado por tarjeta
+  const getInstallmentSummary = (year: number, month: number, cardId?: string | 'all') => {
     // month es 0-indexed (igual que Date)
     const targetDate = new Date(year, month, 1);
+    const filteredExpenses = cardId && cardId !== 'all'
+      ? expenses.filter(e => e.cardId === cardId)
+      : expenses;
 
-
-
-    return expenses.reduce((acc, expense) => {
+    return filteredExpenses.reduce((acc, expense) => {
       const expenseDate = new Date(expense.date);
       const inst = expense.installments ?? 1;
       const current = expense.currentInstallment ?? 1;
@@ -215,7 +216,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           (year - expenseDate.getFullYear()) * 12 +
           (month - expenseDate.getMonth());
 
-        const installmentIndex = current + monthsDiff; // cuota que cae en ese mes
+        const installmentIndex = 1 + monthsDiff; // cuota que cae en ese mes (1=primera cuota en el mes de compra)
         if (installmentIndex >= 1 && installmentIndex <= inst) {
           acc.installments += instAmount;
           acc.installmentItems.push({
@@ -234,13 +235,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
 
-  // Proyección de los próximos N meses
-  const getMonthlyProjection = (months: number = 6) => {
+  // Proyección de los próximos N meses, opcionalmente filtrada por tarjeta
+  const getMonthlyProjection = (months: number = 6, cardId?: string | 'all') => {
     const now = new Date();
     return Array.from({ length: months }, (_, i) => {
       const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const label = date.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
-      const summary = getInstallmentSummary(date.getFullYear(), date.getMonth());
+      const summary = getInstallmentSummary(date.getFullYear(), date.getMonth(), cardId);
       return {
         label,
         year: date.getFullYear(),

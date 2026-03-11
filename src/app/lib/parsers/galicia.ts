@@ -28,7 +28,9 @@ export const parseGaliciaVisa = (text: string): ImportSummary => {
         let match = txRegex.exec(line);
         if (match) {
             const [, rawDate, desc, cuota, comprobante, amountStr, usdStr] = match;
-            const amount = parseAmount(amountStr);
+            const usdAmount = usdStr ? parseAmount(usdStr) : 0;
+            const isUSD = usdAmount > 0;
+            const amount = isUSD ? usdAmount : parseAmount(amountStr);
             if (!amount) continue;
             const [cur, tot] = cuota.split('/').map(Number);
             items.push({
@@ -39,7 +41,7 @@ export const parseGaliciaVisa = (text: string): ImportSummary => {
                 currentInstallment: cur,
                 installmentAmount: amount,
                 comprobante,
-                currency: usdStr && parseAmount(usdStr) > 0 ? 'USD' : 'ARS',
+                currency: isUSD ? 'USD' : 'ARS',
                 selected: true,
             });
             continue;
@@ -48,7 +50,9 @@ export const parseGaliciaVisa = (text: string): ImportSummary => {
         match = txRegexNoInst.exec(line);
         if (match) {
             const [, rawDate, desc, comprobante, amountStr, usdStr] = match;
-            const amount = parseAmount(amountStr);
+            const usdAmount = usdStr ? parseAmount(usdStr) : 0;
+            const isUSD = usdAmount > 0;
+            const amount = isUSD ? usdAmount : parseAmount(amountStr);
             if (!amount) continue;
             items.push({
                 date: formatGaliciaDate(rawDate),
@@ -58,7 +62,7 @@ export const parseGaliciaVisa = (text: string): ImportSummary => {
                 currentInstallment: 1,
                 installmentAmount: amount,
                 comprobante,
-                currency: usdStr && parseAmount(usdStr) > 0 ? 'USD' : 'ARS',
+                currency: isUSD ? 'USD' : 'ARS',
                 selected: true,
             });
         }
@@ -107,7 +111,8 @@ export const parseGaliciaMaster = (text: string): ImportSummary => {
         if (section === 'cuotas') {
             const match = cuotaRegex.exec(line);
             if (match) {
-                const [, rawDate, desc, cuota, comprobante, amountStr, usdStr] = match;
+                const [, rawDate, desc, cuota, comprobante, amountStr] = match;
+                const isUSD = /USD/i.test(desc);
                 const amount = parseAmount(amountStr);
                 if (!amount) continue;
                 const [cur, tot] = cuota.split('/').map(Number);
@@ -119,7 +124,7 @@ export const parseGaliciaMaster = (text: string): ImportSummary => {
                     currentInstallment: cur,
                     installmentAmount: amount,
                     comprobante,
-                    currency: usdStr && parseAmount(usdStr) > 0 ? 'USD' : 'ARS',
+                    currency: isUSD ? 'USD' : 'ARS',
                     selected: true,
                 });
             }
@@ -129,7 +134,9 @@ export const parseGaliciaMaster = (text: string): ImportSummary => {
         if (section === 'contado') {
             const match = contadoRegex.exec(line);
             if (match) {
-                const [, rawDate, desc, comprobante, amountStr, usdStr] = match;
+                const [, rawDate, desc, comprobante, amountStr] = match;
+                // USD: la descripción contiene "USD" y la columna PESOS está vacía
+                const isUSD = /USD/i.test(desc);
                 const amount = parseAmount(amountStr);
                 if (!amount) continue;
                 items.push({
@@ -140,7 +147,7 @@ export const parseGaliciaMaster = (text: string): ImportSummary => {
                     currentInstallment: 1,
                     installmentAmount: amount,
                     comprobante,
-                    currency: usdStr && parseAmount(usdStr) > 0 ? 'USD' : 'ARS',
+                    currency: isUSD ? 'USD' : 'ARS',
                     selected: true,
                 });
             }

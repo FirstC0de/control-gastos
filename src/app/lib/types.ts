@@ -92,13 +92,13 @@ export type FinanceContextType = {
   addCard: (card: Omit<Card, 'id'>) => Promise<void>;
   updateCard: (id: string, updates: Partial<Card>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
-  getInstallmentSummary: (year: number, month: number) => {
+  getInstallmentSummary: (year: number, month: number, cardId?: string | 'all') => {
     cash: number;
     installments: number;
     cashItems: Expense[];
     installmentItems: (Expense & { currentInstallment: number })[];
   };
-  getMonthlyProjection: (months?: number) => {
+  getMonthlyProjection: (months?: number, cardId?: string | 'all') => {
     label: string; year: number; month: number;
     total: number; cash: number; installments: number;
   }[];
