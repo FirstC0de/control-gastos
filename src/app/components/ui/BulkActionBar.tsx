@@ -10,6 +10,7 @@ interface BulkActionBarProps {
   onDeleteAll: () => void;
   onChangeCategoryAll: (categoryId: string | null) => void;
   onClearSelection: () => void;
+  onChangeCardAll?: (cardId: string | null) => void;
 }
 
 export default function BulkActionBar({
@@ -18,9 +19,11 @@ export default function BulkActionBar({
   onDeleteAll,
   onChangeCategoryAll,
   onClearSelection,
+  onChangeCardAll,
 }: BulkActionBarProps) {
-  const { categories } = useFinance();
+  const { categories, cards } = useFinance();
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showCardPicker, setShowCardPicker] = useState(false);
 
   const categoryType: CategoryType =
     entityType === 'incomes' ? 'income' : 'expense';
@@ -44,7 +47,7 @@ export default function BulkActionBar({
       {/* Cambiar categoría */}
       <div className="relative">
         <button
-          onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+          onClick={() => { setShowCategoryPicker(!showCategoryPicker); setShowCardPicker(false); }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
             bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
         >
@@ -80,6 +83,48 @@ export default function BulkActionBar({
           </div>
         )}
       </div>
+
+      {/* Asignar tarjeta (solo para gastos) */}
+      {entityType === 'expenses' && onChangeCardAll && (
+        <div className="relative">
+          <button
+            onClick={() => { setShowCardPicker(!showCardPicker); setShowCategoryPicker(false); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+              bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+          >
+            💳 Asignar tarjeta
+            <span className="text-slate-400">{showCardPicker ? '▲' : '▼'}</span>
+          </button>
+
+          {showCardPicker && (
+            <div className="absolute bottom-full mb-2 left-0 bg-white rounded-xl
+              shadow-xl border border-slate-200 py-1 min-w-50 max-h-60 overflow-y-auto">
+
+              <button
+                onClick={() => { onChangeCardAll(null); setShowCardPicker(false); }}
+                className="w-full px-3 py-2 text-left text-sm text-slate-500
+                  hover:bg-slate-50 flex items-center gap-2"
+              >
+                <div className="w-3 h-3 rounded-full bg-slate-300" />
+                Sin tarjeta
+              </button>
+
+              {cards.map(card => (
+                <button
+                  key={card.id}
+                  onClick={() => { onChangeCardAll(card.id); setShowCardPicker(false); }}
+                  className="w-full px-3 py-2 text-left text-sm text-slate-700
+                    hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <div className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: card.color }} />
+                  {card.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Eliminar */}
       <button

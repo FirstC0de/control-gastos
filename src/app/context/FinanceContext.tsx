@@ -54,7 +54,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        fetchExpenses().then(setExpenses).catch(console.error);
+        fetchExpenses().then(data => {
+          const withCard = data.filter(e => e.cardId);
+          data.slice(0, 5).forEach(e => console.log(`[expense] "${e.description}" → cardId: ${e.cardId ?? 'null'}`));
+          console.log('[fetchExpenses] total:', data.length, '| withCardId:', withCard.length);
+          setExpenses(data);
+        }).catch(console.error);
         fetchIncomes().then(setIncomes).catch(console.error);
         fetchBudgets().then(setBudgets).catch(console.error);
         fetchCategories().then(setCategories).catch(console.error);
@@ -190,9 +195,24 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const getBalance = (): number => getTotalIncome() - getTotalExpenses();
 
   // Lógica de cuotas — cuánto pagar en un mes dado
-  const getInstallmentSummary = (year: number, month: number) => {
+  const getInstallmentSummary = (year: number, month: number, cardId?: string | 'all') => {
     // month es 0-indexed (igual que Date)
-    return expenses.reduce((acc, expense) => {
+    if (cardId && cardId !== 'all') {
+      const withCard    = expenses.filter(e => e.cardId);
+      const matchCard   = expenses.filter(e => e.cardId === cardId);
+      const cardIds     = [...new Set(expenses.map(e => e.cardId).filter(Boolean))];
+      console.log('[getInstallmentSummary]', {
+        filteringBy:       cardId,
+        totalExpenses:     expenses.length,
+        withCardId:        withCard.length,
+        matchingCard:      matchCard.length,
+        uniqueCardIds:     cardIds.join(' | '),
+      });
+    }
+    const filtered = cardId && cardId !== 'all'
+      ? expenses.filter(e => e.cardId === cardId)
+      : expenses;
+    return filtered.reduce((acc, expense) => {
       const expenseDate = new Date(expense.date);
       const inst = expense.installments ?? 1;
       const instAmount = expense.installmentAmount ?? expense.amount;
@@ -210,7 +230,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           (year - expenseDate.getFullYear()) * 12 +
           (month - expenseDate.getMonth());
 
-        const installmentIndex = (expense.currentInstallment ?? 1) + monthsDiff; // cuota que cae en ese mes
+        const installmentIndex = 1 + monthsDiff; // cuota 1 arranca en la fecha de compra
         if (installmentIndex >= 1 && installmentIndex <= inst) {
           acc.installments += instAmount;
           acc.installmentItems.push({
@@ -230,12 +250,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
 
   // Proyección de los próximos N meses
-  const getMonthlyProjection = (months: number = 6) => {
+  const getMonthlyProjection = (months: number = 6, cardId?: string | 'all') => {
     const now = new Date();
     return Array.from({ length: months }, (_, i) => {
       const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const label = date.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
-      const summary = getInstallmentSummary(date.getFullYear(), date.getMonth());
+      const summary = getInstallmentSummary(date.getFullYear(), date.getMonth(), cardId);
       return {
         label,
         year: date.getFullYear(),

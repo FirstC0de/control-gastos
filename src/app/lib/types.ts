@@ -10,7 +10,8 @@ export type Expense = {
   installments?: number;
   currentInstallment?: number;
   installmentAmount?: number;
-  currency?: Currency; // ← nuevo, opcional para no romper gastos existentes
+  currency?: Currency;
+  comprobante?: string;
 };
 
 export type Card = {

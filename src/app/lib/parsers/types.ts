@@ -8,6 +8,7 @@ export interface ParsedExpense {
     comprobante: string;
     currency: 'ARS' | 'USD';
     selected: boolean;
+    duplicate?: boolean;
 }
 
 export interface ImportSummary {

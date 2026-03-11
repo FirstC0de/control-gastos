@@ -66,7 +66,7 @@ export default function SummaryCard() {
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 sticky top-20 space-y-6">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
 
         {/* Presupuestos */}
         <div>

@@ -5,6 +5,7 @@ import Dashboard from '../components/Dashboard';
 import ExpenseForm from '../components/ExpenseForm';
 import ExpenseList from '../components/ExpenseList';
 import SummaryCard from '../components/SummaryCard';
+import CardSummaryPDF from '../components/cards/CardSummaryPDF';
 
 export default function DashboardPage() {
   return (
@@ -15,8 +16,9 @@ export default function DashboardPage() {
           <ExpenseForm />
           <ExpenseList />
         </div>
-        <div className="xl:col-span-1">
+        <div className="xl:col-span-1 space-y-6">
           <SummaryCard />
+          <CardSummaryPDF />
         </div>
       </div>
     </AppShell>
