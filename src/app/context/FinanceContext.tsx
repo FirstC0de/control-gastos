@@ -1,21 +1,31 @@
 'use client';
-
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useExchangeRate } from './ExchangeRateContext';
 import {
   fetchExpenses,
   createExpense as apiCreateExpense,
+  updateExpense as apiUpdateExpense,   // ← nuevo
   deleteExpense as apiDeleteExpense,
   fetchIncomes,
   createIncome as apiCreateIncome,
+  updateIncome as apiUpdateIncome,     // ← nuevo
   deleteIncome as apiDeleteIncome,
   fetchBudgets,
   createBudget as apiCreateBudget,
+  updateBudget as apiUpdateBudget,     // ← nuevo
   deleteBudget as apiDeleteBudget,
   fetchCategories,
   createCategory as apiCreateCategory,
+  updateCategory as apiUpdateCategory, // ← nuevo
   deleteCategory as apiDeleteCategory,
   fetchMonthlyIncome,
-  updateMonthlyIncome as apiUpdateMonthlyIncome
+  updateMonthlyIncome as apiUpdateMonthlyIncome,
+  fetchCards,
+  createCard as apiCreateCard,
+  updateCard as apiUpdateCard,
+  deleteCard as apiDeleteCard,
 } from '../lib/api';
 import {
   Expense,
@@ -23,10 +33,12 @@ import {
   Budget,
   Category,
   CategoryType,
-  FinanceContextType
+  FinanceContextType,
+  Card,
+  Currency
 } from '../lib/types';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL as string;
+
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
@@ -36,14 +48,54 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [monthlyIncome, setMonthlyIncome] = useState<number>(0);
+  const [cards, setCards] = useState<Card[]>([]);
+  const { blue } = useExchangeRate();
 
   useEffect(() => {
-    fetchExpenses().then(setExpenses).catch(console.error);
-    fetchIncomes().then(setIncomes).catch(console.error);
-    fetchBudgets().then(setBudgets).catch(console.error);
-    fetchCategories().then(setCategories).catch(console.error);
-    fetchMonthlyIncome().then(setMonthlyIncome).catch(console.error);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchExpenses().then(setExpenses).catch(console.error);
+        fetchIncomes().then(setIncomes).catch(console.error);
+        fetchBudgets().then(setBudgets).catch(console.error);
+        fetchCategories().then(setCategories).catch(console.error);
+        fetchMonthlyIncome().then(setMonthlyIncome).catch(console.error);
+        fetchCards().then(setCards).catch(console.error);
+      } else {
+        setExpenses([]);
+        setIncomes([]);
+        setBudgets([]);
+        setCategories([]);
+        setMonthlyIncome(0);
+        setCards([]);
+      }
+
+
+    });
+
+    return () => unsubscribe();
   }, []);
+
+
+  // Convertir un monto a ARS usando dólar blue
+  const toARS = (amount: number, currency: Currency = 'ARS'): number =>
+    currency === 'USD' ? amount * (blue || 1) : amount;
+
+  // CRUD de tarjetas
+  const addCard = async (c: Omit<Card, 'id'>) => {
+    const newCard = await apiCreateCard(c);
+    setCards(prev => [...prev, newCard]);
+  };
+
+  const updateCard = async (id: string, updates: Partial<Card>) => {
+    const updated = await apiUpdateCard(id, updates);
+    setCards(prev => prev.map(x => x.id === id ? updated : x));
+  };
+
+  const deleteCard = async (id: string) => {
+    await apiDeleteCard(id);
+    setCards(prev => prev.filter(x => x.id !== id));
+  };
+
 
   // --- GASTOS ---
   const addExpense = async (e: Omit<Expense, 'id'>) => {
@@ -52,13 +104,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateExpense = async (id: string, updates: Partial<Expense>) => {
-    const res = await fetch(`${BASE}/expenses/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error('Error al actualizar gasto');
-    const updated = await res.json();
+    const updated = await apiUpdateExpense(id, updates); // ← viene de lib/api.ts
     setExpenses(prev => prev.map(x => x.id === id ? updated : x));
   };
 
@@ -74,13 +120,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateIncome = async (id: string, updates: Partial<Income>) => {
-    const res = await fetch(`${BASE}/incomes/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error('Error al actualizar ingreso');
-    const updated = await res.json();
+    const updated = await apiUpdateIncome(id, updates);
     setIncomes(prev => prev.map(x => x.id === id ? updated : x));
   };
 
@@ -96,13 +136,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateBudget = async (id: string, updates: Partial<Budget>) => {
-    const res = await fetch(`${BASE}/budgets/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error('Error al actualizar presupuesto');
-    const updated = await res.json();
+    const updated = await apiUpdateBudget(id, updates);
     setBudgets(prev => prev.map(x => x.id === id ? updated : x));
   };
 
@@ -117,9 +151,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setCategories(prev => [...prev, newCat]);
   };
 
+  // Y updateCategory que antes no persistía:
   const updateCategory = async (id: string, updates: Partial<Category>) => {
-    // TODO: PUT /api/categories/:id
-    setCategories(prev => prev.map(x => x.id === id ? { ...x, ...updates } : x));
+    const updated = await apiUpdateCategory(id, updates); // ← ahora sí persiste
+    setCategories(prev => prev.map(x => x.id === id ? updated : x));
   };
 
   const deleteCategory = async (id: string) => {
@@ -146,18 +181,87 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return budget.amount - spent;
   };
 
-  const getTotalExpenses = () =>
-    expenses.reduce((sum, e) => sum + e.amount, 0);
+  const getTotalExpenses = (): number =>
+    expenses.reduce((sum, e) => sum + toARS(e.amount, e.currency ?? 'ARS'), 0);
 
-  const getTotalIncome = () =>
-    monthlyIncome + incomes.reduce((sum, i) => sum + i.amount, 0);
+  const getTotalIncome = (): number =>
+    incomes.reduce((sum, i) => sum + toARS(i.amount, i.currency ?? 'ARS'), 0);
 
-  const getBalance = () =>
-    getTotalIncome() - getTotalExpenses();
+  const getBalance = (): number => getTotalIncome() - getTotalExpenses();
+
+  // Lógica de cuotas — cuánto pagar en un mes dado
+  const getInstallmentSummary = (year: number, month: number) => {
+    // month es 0-indexed (igual que Date)
+    const targetDate = new Date(year, month, 1);
+
+
+
+    return expenses.reduce((acc, expense) => {
+      const expenseDate = new Date(expense.date);
+      const inst = expense.installments ?? 1;
+      const current = expense.currentInstallment ?? 1;
+      const instAmount = expense.installmentAmount ?? expense.amount;
+
+
+      if (inst === 1) {
+        // Contado: solo aparece en su mes
+        if (expenseDate.getFullYear() === year && expenseDate.getMonth() === month) {
+          acc.cash += expense.amount;
+          acc.cashItems.push(expense);
+        }
+      } else {
+        // Cuotas: calcular cuál cuota cae en targetDate
+        const monthsDiff =
+          (year - expenseDate.getFullYear()) * 12 +
+          (month - expenseDate.getMonth());
+
+        const installmentIndex = current + monthsDiff; // cuota que cae en ese mes
+        if (installmentIndex >= 1 && installmentIndex <= inst) {
+          acc.installments += instAmount;
+          acc.installmentItems.push({
+            ...expense,
+            currentInstallment: installmentIndex,
+          });
+        }
+      }
+      return acc;
+    }, {
+      cash: 0,
+      installments: 0,
+      cashItems: [] as Expense[],
+      installmentItems: [] as (Expense & { currentInstallment: number })[],
+    });
+  };
+
+
+  // Proyección de los próximos N meses
+  const getMonthlyProjection = (months: number = 6) => {
+    const now = new Date();
+    return Array.from({ length: months }, (_, i) => {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const label = date.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+      const summary = getInstallmentSummary(date.getFullYear(), date.getMonth());
+      return {
+        label,
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        total: summary.cash + summary.installments,
+        cash: summary.cash,
+        installments: summary.installments,
+      };
+    });
+  };
+
 
   return (
     <FinanceContext.Provider
       value={{
+        cards,
+        addCard,
+        updateCard,
+        deleteCard,
+        getInstallmentSummary,
+        getMonthlyProjection,
         expenses,
         incomes,
         budgets,
@@ -180,7 +284,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         getRemainingBudget,
         getTotalExpenses,
         getTotalIncome,
-        getBalance
+        getBalance,
+
       }}
     >
       {children}

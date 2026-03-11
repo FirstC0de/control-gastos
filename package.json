@@ -9,7 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "15.2.4",
+    "@anthropic-ai/sdk": "^0.78.0",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.7.0",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
+    "next": "^15.5.12",
+    "pdfjs-dist": "^5.5.207",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

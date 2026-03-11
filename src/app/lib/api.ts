@@ -1,119 +1,167 @@
-// src/lib/api.ts
 import {
-  Budget,
-  Expense,
-  Income,
-  Category
-} from './types';
+  collection, doc, getDocs, addDoc, updateDoc,
+  deleteDoc, getDoc, setDoc, query, orderBy
+} from 'firebase/firestore';
+import { db, auth } from './firebase';
+import { Expense, Income, Budget, Category, Card } from './types';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL;
+// Helper para obtener uid — lanza error claro si no hay sesión
+const getUid = (): string => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Usuario no autenticado');
+  return uid;
+};
 
-// —————— EXPENSES ——————
-export async function fetchExpenses(): Promise<Expense[]> {
-  const res = await fetch(`${BASE}/expenses`);
-  if (!res.ok) throw new Error('Error al obtener gastos');
-  return res.json();
-}
+// Helper para eliminar campos undefined antes de enviar a Firestore
+const cleanUndefined = <T extends object>(obj: T): Partial<T> =>
+  Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
 
-export async function createExpense(e: Omit<Expense, 'id'>): Promise<Expense> {
-  const res = await fetch(`${BASE}/expenses`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(e),
-  });
-  if (!res.ok) throw new Error('Error al crear gasto');
-  return res.json();
-}
+// ── GASTOS ────────────────────────────────────────────────
+export const fetchExpenses = async (): Promise<Expense[]> => {
+  const uid = getUid();
+  const q = query(collection(db, 'users', uid, 'expenses'), orderBy('date', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Expense));
+};
 
-export async function deleteExpense(id: Expense['id']): Promise<void> {
-  const res = await fetch(`${BASE}/expenses/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Error al borrar gasto');
-}
+export const createExpense = async (e: Omit<Expense, 'id'>): Promise<Expense> => {
+  const uid = getUid();
+  const data = cleanUndefined(e); // ← limpia cardId, categoryId, etc.
+  const ref = await addDoc(collection(db, 'users', uid, 'expenses'), data);
+  return { id: ref.id, ...e };
+};
 
-// —————— INCOMES ——————
-export async function fetchIncomes(): Promise<Income[]> {
-  const res = await fetch(`${BASE}/incomes`);
-  if (!res.ok) throw new Error('Error al obtener ingresos');
-  return res.json();
-}
+export const updateExpense = async (id: string, updates: Partial<Expense>): Promise<Expense> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'expenses', id);
+  await updateDoc(ref, cleanUndefined(updates)); // ← mismo fix
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() } as Expense;
+};
+export const deleteExpense = async (id: string): Promise<void> => {
+  const uid = getUid();
+  await deleteDoc(doc(db, 'users', uid, 'expenses', id));
+};
 
-export async function createIncome(i: Omit<Income, 'id'>): Promise<Income> {
-  const res = await fetch(`${BASE}/incomes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(i),
-  });
-  if (!res.ok) throw new Error('Error al crear ingreso');
-  return res.json();
-}
+// ── INGRESOS ──────────────────────────────────────────────
+export const fetchIncomes = async (): Promise<Income[]> => {
+  const uid = getUid();
+  const q = query(collection(db, 'users', uid, 'incomes'), orderBy('date', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Income));
+};
 
-export async function deleteIncome(id: Income['id']): Promise<void> {
-  const res = await fetch(`${BASE}/incomes/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Error al borrar ingreso');
-}
+export const createIncome = async (i: Omit<Income, 'id'>): Promise<Income> => {
+  const uid = getUid();
+  const ref = await addDoc(collection(db, 'users', uid, 'incomes'), cleanUndefined(i)); // ← categoryId puede ser undefined
+  return { id: ref.id, ...i };
+};
 
-// —————— BUDGETS ——————
-export async function fetchBudgets(): Promise<Budget[]> {
-  const res = await fetch(`${BASE}/budgets`);
-  if (!res.ok) throw new Error('Error al obtener presupuestos');
-  return res.json();
-}
+export const updateIncome = async (id: string, updates: Partial<Income>): Promise<Income> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'incomes', id);
+  await updateDoc(ref, cleanUndefined(updates)); // ←
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() } as Income;
+};
 
-export async function createBudget(b: Omit<Budget, 'id'>): Promise<Budget> {
-  const res = await fetch(`${BASE}/budgets`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(b),
-  });
-  if (!res.ok) throw new Error('Error al crear presupuesto');
-  return res.json();
-}
 
-export async function deleteBudget(id: Budget['id']): Promise<void> {
-  const res = await fetch(`${BASE}/budgets/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Error al borrar presupuesto');
-}
+export const deleteIncome = async (id: string): Promise<void> => {
+  const uid = getUid();
+  await deleteDoc(doc(db, 'users', uid, 'incomes', id));
+};
 
-// —————— CATEGORIES ——————
-export function fetchCategories() {
-  return fetch(`${BASE}/categories`)
-    .then(res => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    });
-}
+// ── PRESUPUESTOS ──────────────────────────────────────────
+export const fetchBudgets = async (): Promise<Budget[]> => {
+  const uid = getUid();
+  const snap = await getDocs(collection(db, 'users', uid, 'budgets'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Budget));
+};
 
-// Now accepts Omit<Category,'id'> as input
-export async function createCategory(c: Omit<Category, 'id'>): Promise<Category> {
-  const res = await fetch(`${BASE}/categories`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json'  },
-    body: JSON.stringify(c),
-  });
-  if (!res.ok) throw new Error('Error al crear categoría');
-  return res.json();
-}
+export const createBudget = async (b: Omit<Budget, 'id'>): Promise<Budget> => {
+  const uid = getUid();
+  const ref = await addDoc(collection(db, 'users', uid, 'budgets'), cleanUndefined(b)); // ← categoryId, spent pueden ser undefined
+  return { id: ref.id, ...b };
+};
+export const updateBudget = async (id: string, updates: Partial<Budget>): Promise<Budget> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'budgets', id);
+  await updateDoc(ref, cleanUndefined(updates)); // ←
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() } as Budget;
+};
 
-export async function deleteCategory(id: Category['id']): Promise<void> {
-  const res = await fetch(`${BASE}/categories/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Error al borrar categoría');
-}
+export const deleteBudget = async (id: string): Promise<void> => {
+  const uid = getUid();
+  await deleteDoc(doc(db, 'users', uid, 'budgets', id));
+};
 
-// —————— MONTHLY INCOME ——————
-export async function fetchMonthlyIncome(): Promise<number> {
-  const res = await fetch(`${BASE}/monthly-income`);
-  if (!res.ok) throw new Error('Error al obtener ingreso mensual');
-  const data = await res.json(); // { id: 1, amount: number }
-  return data.amount;
-}
+// ── CATEGORÍAS ────────────────────────────────────────────
+export const fetchCategories = async (): Promise<Category[]> => {
+  const uid = getUid();
+  const snap = await getDocs(collection(db, 'users', uid, 'categories'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Category));
+};
 
-export async function updateMonthlyIncome(amount: number): Promise<number> {
-  const res = await fetch(`${BASE}/monthly-income`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount }),
-  });
-  if (!res.ok) throw new Error('Error al actualizar ingreso mensual');
-  const data = await res.json();
-  return data.amount;
-}
+export const createCategory = async (c: Omit<Category, 'id'>): Promise<Category> => {
+  const uid = getUid();
+  const ref = await addDoc(collection(db, 'users', uid, 'categories'), cleanUndefined(c)); // ← icon es opcional
+  return { id: ref.id, ...c };
+};
+
+
+export const updateCategory = async (id: string, updates: Partial<Category>): Promise<Category> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'categories', id);
+  await updateDoc(ref, cleanUndefined(updates)); // ←
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() } as Category;
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+  const uid = getUid();
+  await deleteDoc(doc(db, 'users', uid, 'categories', id));
+};
+
+// ── INGRESO MENSUAL ───────────────────────────────────────
+export const fetchMonthlyIncome = async (): Promise<number> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'config', 'monthlyIncome');
+  const snap = await getDoc(ref);
+  return snap.exists() ? (snap.data().amount as number) : 0;
+};
+
+export const updateMonthlyIncome = async (amount: number): Promise<number> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'config', 'monthlyIncome');
+  await setDoc(ref, { amount });
+  return amount;
+};
+
+// ── TARJETAS ──────────────────────────────────────────────
+export const fetchCards = async (): Promise<Card[]> => {
+  const uid = getUid();
+  const snap = await getDocs(collection(db, 'users', uid, 'cards'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Card));
+};
+
+export const createCard = async (c: Omit<Card, 'id'>): Promise<Card> => {
+  const uid = getUid();
+  const ref = await addDoc(collection(db, 'users', uid, 'cards'), cleanUndefined(c)); // ← lastFour es opcional
+  return { id: ref.id, ...c };
+};
+
+export const updateCard = async (id: string, updates: Partial<Card>): Promise<Card> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'cards', id);
+  await updateDoc(ref, cleanUndefined(updates)); // ←
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() } as Card;
+};
+
+export const deleteCard = async (id: string): Promise<void> => {
+  const uid = getUid();
+  await deleteDoc(doc(db, 'users', uid, 'cards', id));
+};

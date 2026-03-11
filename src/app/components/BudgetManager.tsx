@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { Budget } from '../lib/types';
-import CategorySelector from './CategorySelector';
+import CategorySelector from './categories/CategorySelector';
+import { ToastContainer, useToast } from './ui/Toast';
+import ConfirmModal from './ui/ConfirmModal';
 
 export default function BudgetManager() {
   const {
@@ -15,6 +17,8 @@ export default function BudgetManager() {
     deleteBudget,
   } = useFinance();
 
+
+
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [formData, setFormData] = useState<Omit<Budget, 'id'>>({
     name: '',
@@ -23,6 +27,9 @@ export default function BudgetManager() {
     period: 'monthly',
     spent: 0
   });
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { toasts, show, remove } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,13 +62,14 @@ export default function BudgetManager() {
     setEditingBudget(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Eliminar este presupuesto?')) {
-      try {
-        await deleteBudget(id);
-      } catch (error) {
-        console.error('Error al eliminar presupuesto:', error);
-      }
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      await deleteBudget(deletingId);
+      show('Presupuesto eliminado', 'warning');
+      setDeletingId(null);
+    } catch {
+      show('Error al eliminar', 'error');
     }
   };
 
@@ -96,10 +104,11 @@ export default function BudgetManager() {
         <div>
           <label className="block mb-1 font-medium">Categoría</label>
           <CategorySelector
-            value={formData.categoryId}
-            onChange={(categoryId) => setFormData({ ...formData, categoryId })}
+            value={formData.categoryId ?? null}
+            onChange={id => setFormData({ ...formData, categoryId: id })}
             categoryType="expense"
             required
+            showManageButton={false}
           />
         </div>
 
@@ -187,10 +196,9 @@ export default function BudgetManager() {
                       {/* Barra de progreso */}
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                         <div
-                          className={`h-2 rounded-full ${
-                            percentageUsed > 80 ? 'bg-red-500' : 
+                          className={`h-2 rounded-full ${percentageUsed > 80 ? 'bg-red-500' :
                             percentageUsed > 50 ? 'bg-yellow-500' : 'bg-green-500'
-                          }`}
+                            }`}
                           style={{ width: `${Math.min(100, percentageUsed)}%` }}
                         ></div>
                       </div>
@@ -213,7 +221,7 @@ export default function BudgetManager() {
                         Editar
                       </button>
                       <button
-                        onClick={() => handleDelete(budget.id)}
+                        onClick={() => setDeletingId(budget.id)}
                         className="text-red-600 hover:text-red-800 transition-colors"
                         aria-label="Eliminar presupuesto"
                       >
@@ -221,6 +229,11 @@ export default function BudgetManager() {
                       </button>
                     </div>
                   </div>
+
+                  <ConfirmModal isOpen={!!deletingId} title="Eliminar presupuesto"
+                    message="¿Eliminar este presupuesto?" confirmLabel="Eliminar" danger
+                    onConfirm={handleDelete} onCancel={() => setDeletingId(null)} />
+                  <ToastContainer toasts={toasts} onRemove={remove} />
                 </div>
               );
             })}

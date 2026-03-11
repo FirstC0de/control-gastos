@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './styles/globals.css';
 import Navbar from './components/Navbar';
 import { FinanceProvider } from './context/FinanceContext';
+import { AuthProvider } from './context/AuthContext';
 import Footer from './components/Footer';
-
-
-const inter = Inter({ subsets: ['latin'] });
+import { ExchangeRateProvider } from './context/ExchangeRateContext';
 
 export const metadata: Metadata = {
   title: 'Control de Gastos',
@@ -14,25 +12,20 @@ export const metadata: Metadata = {
 };
 
 // app/layout.tsx
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body>
-        {/* Client Component que envuelve todo */}
-        <FinanceProvider>
-          {/* Navbar puede ser Server Component si no usa hooks */}
-          <Navbar />
-          <main className="container mx-auto px-4 py-8">
+        <AuthProvider>
+          <ExchangeRateProvider>
+          <FinanceProvider>
+            <Navbar />
             {children}
-           
-          </main>
-         
-        </FinanceProvider>
-        
+            <Footer />
+          </FinanceProvider>
+          </ExchangeRateProvider>
+        </AuthProvider>
+
       </body>
     </html>
   );

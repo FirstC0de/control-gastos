@@ -1,114 +1,137 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
-  // Estado para simular si el usuario está logueado o no
-  const isLoggedIn = false; // Cambiar a true para ver el estado logueado
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const navLinks = [
+    { href: '/',         label: 'Dashboard' },
+    { href: '/ingresos', label: 'Finanzas'  },
+  ];
 
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-10">
+    <nav className="bg-white border-b border-slate-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          {/* Logo y menú principal */}
-          <div className="flex items-center">
-            <Link href="/" className="text-xl font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
-              Control Gastos
+        <div className="flex justify-between h-16 items-center">
+
+          {/* Logo */}
+          <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">CG</span>
+              </div>
+              <span className="text-slate-900 font-semibold text-lg tracking-tight">
+                Control<span className="text-indigo-600">Gastos</span>
+              </span>
             </Link>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <Link
-                href="/"
-                className="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/ingresos"
-                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                Ingresos
-              </Link>
+
+            {/* Links desktop */}
+            <div className="hidden sm:flex items-center gap-1">
+              {navLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                >
+                  {label}
+                </Link>
+              ))}
             </div>
           </div>
 
-          {/* Sección de autenticación */}
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {isLoggedIn ? (
-              <div className="flex items-center space-x-4">
-                <button className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium">
-                  Mi Perfil
+          {/* Auth — desktop */}
+          <div className="hidden sm:flex items-center gap-3">
+            {user ? (
+              <>
+                <span className="text-sm text-slate-500">
+                  {user.displayName || user.email}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Cerrar sesión
                 </button>
-                <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
-                  Cerrar Sesión
-                </button>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center space-x-4">
+              <>
                 <Link
                   href="/login"
-                  className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
                 >
-                  Iniciar Sesión
+                  Iniciar sesión
                 </Link>
                 <Link
                   href="/registro"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
                 >
                   Registrarse
                 </Link>
-              </div>
+              </>
             )}
           </div>
 
-          {/* Menú móvil (hamburguesa) */}
-          <div className="-mr-2 flex items-center sm:hidden">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
-              aria-controls="mobile-menu"
-              aria-expanded="false"
-            >
-              <span className="sr-only">Abrir menú principal</span>
-              {/* Icono de menú hamburguesa */}
-              <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
+          {/* Hamburguesa mobile */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="sm:hidden p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {mobileOpen
+                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
+            </svg>
+          </button>
         </div>
       </div>
 
-      {/* Menú móvil (contenido colapsado) */}
-      <div className="sm:hidden" id="mobile-menu">
-        <div className="pt-2 pb-3 space-y-1">
-          <Link
-            href="/"
-            className="bg-indigo-50 border-indigo-500 text-indigo-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/ingresos"
-            className="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-          >
-            Ingresos
-          </Link>
-          {!isLoggedIn && (
-            <>
-              <Link
-                href="/login"
-                className="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+      {/* Menú mobile */}
+      {mobileOpen && (
+        <div className="sm:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+          {navLinks.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              {label}
+            </Link>
+          ))}
+          <div className="pt-2 border-t border-slate-100 mt-2">
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
               >
-                Iniciar Sesión
-              </Link>
-              <Link
-                href="/registro"
-                className="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-              >
-                Registrarse
-              </Link>
-            </>
-          )}
+                Cerrar sesión
+              </button>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100">
+                  Iniciar sesión
+                </Link>
+                <Link href="/registro" onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2 mt-1 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 text-center">
+                  Registrarse
+                </Link>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </nav>
   );
 }
