@@ -9,7 +9,7 @@ import CategorySelector from '../categories/CategorySelector';
 
 
 export default function PDFImporter({ onClose }: { onClose?: () => void }) {
-    const { addExpense, cards } = useFinance();
+    const { addExpense, cards, expenses } = useFinance();
 
     const [step, setStep] = useState<'upload' | 'review' | 'importing' | 'done'>('upload');
     const [summary, setSummary] = useState<ImportSummary | null>(null);
@@ -83,7 +83,16 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                 throw new Error('No se encontraron transacciones en el resumen.');
             }
 
-            setSummary(parsed);
+            // Marcar duplicados
+            const itemsWithDupes = parsed.items.map(item => {
+                const isDuplicate = expenses.some(e => {
+                    if (item.comprobante && e.comprobante) return e.comprobante === item.comprobante;
+                    return e.description === item.description && e.date === item.date && e.amount === item.amount;
+                });
+                return { ...item, duplicate: isDuplicate, selected: !isDuplicate };
+            });
+
+            setSummary({ ...parsed, items: itemsWithDupes });
             setItemCategories({});
             setStep('review');
         } catch (err: any) {
@@ -136,6 +145,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                 currentInstallment: item.currentInstallment,
                 installmentAmount: item.installmentAmount,
                 currency: item.currency,
+                comprobante: item.comprobante || undefined,
             } as Omit<Expense, 'id'>);
             setProgress(Math.round(((i + 1) / toImport.length) * 100));
         }
@@ -293,6 +303,21 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                         </div>
                     </div>
 
+                    {/* Banner de duplicados */}
+                    {summary.items.some(i => i.duplicate) && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                            <span className="text-amber-500 shrink-0">⚠️</span>
+                            <div>
+                                <p className="text-sm font-semibold text-amber-800">
+                                    {summary.items.filter(i => i.duplicate).length} gasto{summary.items.filter(i => i.duplicate).length !== 1 ? 's' : ''} ya importado{summary.items.filter(i => i.duplicate).length !== 1 ? 's' : ''}
+                                </p>
+                                <p className="text-xs text-amber-600 mt-0.5">
+                                    Están deseleccionados automáticamente. Podés reimportarlos seleccionándolos manualmente.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Controles */}
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex gap-2">
@@ -359,9 +384,16 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                             })}
                                         </td>
                                         <td className="px-3 py-3">
-                                            <p className="text-sm font-medium text-slate-900 truncate max-w-55">
-                                                {item.description}
-                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-medium text-slate-900 truncate max-w-55">
+                                                    {item.description}
+                                                </p>
+                                                {item.duplicate && (
+                                                    <span className="shrink-0 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
+                                                        Duplicado
+                                                    </span>
+                                                )}
+                                            </div>
                                             {item.comprobante && (
                                                 <p className="text-xs text-slate-400">#{item.comprobante}</p>
                                             )}

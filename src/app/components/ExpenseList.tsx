@@ -10,7 +10,7 @@ import BulkActionBar from './ui/BulkActionBar';
 import { ToastContainer, useToast } from './ui/Toast';
 
 export default function ExpenseList() {
-  const { expenses, updateExpense, deleteExpense, categories } = useFinance();
+  const { expenses, updateExpense, deleteExpense, categories, cards } = useFinance();
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
 
@@ -88,6 +88,22 @@ export default function ExpenseList() {
     }
   };
 
+  // ── Bulk card change ──────────────────────────────────
+  const handleBulkCardChange = async (cardId: string | null) => {
+    setLoading(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map(id => updateExpense(id, { cardId: cardId ?? undefined }))
+      );
+      show(`Tarjeta actualizada en ${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''}`, 'success');
+      clearSelection();
+    } catch {
+      show('Error al actualizar tarjeta', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Edición individual ────────────────────────────────
   const startEditing = (expense: Expense) => {
     setEditingId(expense.id);
@@ -96,6 +112,7 @@ export default function ExpenseList() {
       amount:      expense.amount,
       categoryId:  expense.categoryId,
       currency:    expense.currency,
+      cardId:      expense.cardId,
     });
   };
 
@@ -236,6 +253,13 @@ export default function ExpenseList() {
                               onChange={id => setCurrentEdits(p => ({ ...p, categoryId: id ?? undefined }))}
                               categoryType="expense" className={inputClass} showManageButton={false} />
                           </div>
+                          <select
+                            value={currentEdits.cardId ?? ''}
+                            onChange={e => setCurrentEdits(p => ({ ...p, cardId: e.target.value || undefined }))}
+                            className={`${inputClass} w-36`}>
+                            <option value="">Sin tarjeta</option>
+                            {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
                           <button onClick={() => saveEditing(expense.id)} disabled={loading}
                             className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50">
                             Guardar
@@ -358,6 +382,7 @@ export default function ExpenseList() {
         entityType="expenses"
         onDeleteAll={() => setBulkDeleting(true)}
         onChangeCategoryAll={handleBulkCategoryChange}
+        onChangeCardAll={handleBulkCardChange}
         onClearSelection={clearSelection}
       />
 
