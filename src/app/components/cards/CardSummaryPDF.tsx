@@ -4,20 +4,17 @@ import { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 
 export default function CardSummaryPDF() {
-  const { cards, getInstallmentSummary, getMonthlyProjection, expenses, categories } = useFinance();
+  const { cards, getInstallmentSummary, getMonthlyProjection } = useFinance();
   const [selectedCardId, setSelectedCardId] = useState<string | 'all'>('all');
   const [generating, setGenerating] = useState(false);
 
+  const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2 });
   const now        = new Date();
-  const summary    = getInstallmentSummary(now.getFullYear(), now.getMonth());
-  const projection = getMonthlyProjection(6);
+  const summary    = getInstallmentSummary(now.getFullYear(), now.getMonth(), selectedCardId);
+  const projection = getMonthlyProjection(6, selectedCardId);
 
-  // Filtrar por tarjeta si aplica
-  const filterByCard = <T extends { cardId?: string | null }>(items: T[]): T[] =>
-    selectedCardId === 'all' ? items : items.filter(i => i.cardId === selectedCardId);
-
-  const cashItems        = filterByCard(summary.cashItems);
-  const installmentItems = filterByCard(summary.installmentItems);
+  const cashItems        = summary.cashItems;
+  const installmentItems = summary.installmentItems;
   const totalCash        = cashItems.reduce((s, e) => s + e.amount, 0);
   const totalInstallments = installmentItems.reduce((s, e) => s + (e.installmentAmount ?? 0), 0);
   const totalMonth       = totalCash + totalInstallments;
@@ -53,9 +50,9 @@ export default function CardSummaryPDF() {
         startY: 52,
         head: [['Concepto', 'Monto']],
         body: [
-          ['Gastos de contado', `$${totalCash.toFixed(2)}`],
-          ['Cuotas del mes',    `$${totalInstallments.toFixed(2)}`],
-          ['TOTAL A PAGAR',     `$${totalMonth.toFixed(2)}`],
+          ['Gastos de contado', `$${fmt(totalCash)}`],
+          ['Cuotas del mes',    `$${fmt(totalInstallments)}`],
+          ['TOTAL A PAGAR',     `$${fmt(totalMonth)}`],
         ],
         headStyles:  { fillColor: [99, 102, 241], textColor: 255 },
         bodyStyles:  { fontSize: 10 },
@@ -79,7 +76,7 @@ export default function CardSummaryPDF() {
         autoTable(doc, {
           startY: afterSummary + 4,
           head: [['Descripción', 'Monto total']],
-          body: cashItems.map(e => [e.description, `$${e.amount.toFixed(2)}`]),
+          body: cashItems.map(e => [e.description, `$${fmt(e.amount)}`]),
           headStyles: { fillColor: [16, 185, 129], textColor: 255 },
           bodyStyles: { fontSize: 9 },
           columnStyles: { 1: { halign: 'right' } },
@@ -99,8 +96,8 @@ export default function CardSummaryPDF() {
           head: [['Descripción', 'Monto total', 'Cuota mensual', 'Cuota']],
           body: installmentItems.map(e => [
             e.description,
-            `$${e.amount.toFixed(2)}`,
-            `$${(e.installmentAmount ?? 0).toFixed(2)}`,
+            `$${fmt(e.amount)}`,
+            `$${fmt(e.installmentAmount ?? 0)}`,
             `${e.currentInstallment}/${e.installments}`,
           ]),
           headStyles: { fillColor: [245, 158, 11], textColor: 255 },
@@ -121,9 +118,9 @@ export default function CardSummaryPDF() {
         head: [['Mes', 'Contado', 'Cuotas', 'Total']],
         body: projection.map(p => [
           p.label,
-          `$${p.cash.toFixed(2)}`,
-          `$${p.installments.toFixed(2)}`,
-          `$${p.total.toFixed(2)}`,
+          `$${fmt(p.cash)}`,
+          `$${fmt(p.installments)}`,
+          `$${fmt(p.total)}`,
         ]),
         headStyles: { fillColor: [99, 102, 241], textColor: 255 },
         bodyStyles: { fontSize: 9 },
@@ -200,7 +197,7 @@ export default function CardSummaryPDF() {
         ].map(({ label, value, color, bg }) => (
           <div key={label} className={`${bg} rounded-xl p-4`}>
             <p className="text-xs font-medium text-slate-500 mb-1">{label}</p>
-            <p className={`text-xl font-bold ${color}`}>${value.toFixed(2)}</p>
+            <p className={`text-xl font-bold ${color}`}>${fmt(value)}</p>
           </div>
         ))}
       </div>
@@ -225,7 +222,7 @@ export default function CardSummaryPDF() {
                     style={{ width: `${(p.installments / maxTotal) * 100}%` }} />
                 </div>
                 <span className={`text-xs font-semibold w-20 text-right shrink-0 ${i === 0 ? 'text-indigo-600' : 'text-slate-700'}`}>
-                  ${p.total.toFixed(2)}
+                  ${fmt(p.total)}
                 </span>
               </div>
             );

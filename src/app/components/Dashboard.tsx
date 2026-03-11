@@ -88,9 +88,16 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
             {/* Ingresos */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Ingresos</p>
-              <p className="text-3xl font-bold text-emerald-600 tracking-tight">
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ingresos</p>
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-slate-900 tracking-tight font-mono">
                 ${fmt(totalCombinado_inc)}
               </p>
               {totalUSD_inc > 0 && (
@@ -101,12 +108,22 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
+              <div className="mt-3 h-1 rounded-full bg-emerald-100">
+                <div className="h-1 rounded-full bg-emerald-500" style={{ width: totalCombinado_inc > 0 ? '100%' : '0%' }} />
+              </div>
             </div>
 
             {/* Gastos */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Gastos</p>
-              <p className="text-3xl font-bold text-rose-600 tracking-tight">
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Gastos</p>
+                <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center group-hover:bg-rose-100 transition-colors">
+                  <svg className="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-slate-900 tracking-tight font-mono">
                 ${fmt(totalCombinado_exp)}
               </p>
               {totalUSD_exp > 0 && (
@@ -117,19 +134,37 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
+              <div className="mt-3 h-1 rounded-full bg-rose-100">
+                <div className="h-1 rounded-full bg-rose-500"
+                  style={{ width: totalCombinado_inc > 0 ? `${Math.min(100, (totalCombinado_exp / totalCombinado_inc) * 100)}%` : '0%' }} />
+              </div>
             </div>
 
             {/* Balance */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Balance</p>
-              <p className={`text-3xl font-bold tracking-tight ${balanceCombinado >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+            <div className={`rounded-2xl border p-6 shadow-sm hover:shadow-md transition-shadow group ${
+              balanceCombinado >= 0
+                ? 'bg-gradient-to-br from-blue-600 to-blue-700 border-blue-500'
+                : 'bg-gradient-to-br from-rose-600 to-rose-700 border-rose-500'
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">Balance</p>
+                <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.97z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-white tracking-tight font-mono">
                 ${fmt(balanceCombinado)}
               </p>
               {blue > 0 && (
-                <p className="text-xs text-slate-400 mt-2">
-                  Dólar blue: ${fmt(blue)}
+                <p className="text-xs text-white/60 mt-2">
+                  Blue: ${fmt(blue)}
                 </p>
               )}
+              <div className="mt-3 h-1 rounded-full bg-white/20">
+                <div className="h-1 rounded-full bg-white/60" style={{ width: balanceCombinado >= 0 ? '100%' : '30%' }} />
+              </div>
             </div>
           </div>
         )}

@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"D:\\\\Proyectos\\\\front\\\\gestion-de-gastos\" && npm audit)",
+      "Bash(cd \"D:\\\\Proyectos\\\\front\\\\gestion-de-gastos\" && npm run dev)",
+      "Bash(wc -l /d/Proyectos/front/gestion-de-gastos/src/app/components/*.tsx /d/Proyectos/front/gestion-de-gastos/src/app/components/cards/*.tsx /d/Proyectos/front/gestion-de-gastos/src/app/components/categories/*.tsx /d/Proyectos/front/gestion-de-gastos/src/app/components/ui/*.tsx /d/Proyectos/front/gestion-de-gastos/src/app/context/*.tsx)",
+      "Bash(cd \"D:\\\\Proyectos\\\\front\\\\gestion-de-gastos\" && gh pr create --title \"Integración con backend Firebase y refactor de estructura\" --body \"$\\(cat <<'EOF'\n## Summary\n\n- Agrega autenticación completa con Firebase \\(login, registro, sesión con cookies, middleware de protección de rutas\\)\n- Agrega soporte multi-moneda ARS/USD con tipo de cambio blue en tiempo real\n- Agrega gestión de tarjetas de crédito e importación de resúmenes PDF \\(Galicia Visa, Mastercard y Santander\\)\n- Reorganiza la estructura del proyecto: categories/, cards/, ui/, route group \\(auth\\)/, parsers por banco\n- Elimina archivos obsoletos: storage.ts, useExpenses.ts, SVGs por defecto de Next.js\n\n## Test plan\n\n- [ ] Login y registro con email/password y Google/GitHub\n- [ ] Redirección correcta en rutas protegidas \\(middleware\\)\n- [ ] Carga y visualización de gastos, ingresos y presupuestos desde Firestore\n- [ ] Importación de PDF de resumen de tarjeta \\(Galicia y Santander\\)\n- [ ] Conversión de moneda USD → ARS con tipo de cambio blue\n- [ ] URLs `/login` y `/registro` siguen funcionando tras el route group\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\nEOF\n\\)\")",
+      "Bash(where gh:*)",
+      "Bash(winget install:*)",
+      "Bash(cd \"D:\\\\Proyectos\\\\front\\\\gestion-de-gastos\" && gh auth status 2>&1)",
+      "Bash(powershell -Command \"gh auth status\")",
+      "Bash(powershell -Command \"& 'C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe' auth status\")",
+      "Bash(powershell -Command \"& 'C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe' pr merge 3 --merge --delete-branch\")",
+      "Bash(netstat -ano | findstr \":3000\\\\|:3001\" | findstr \"LISTENING\")",
+      "Bash(netstat -ano | findstr \":3000 \\\\|:3001 \")",
+      "Bash(taskkill /PID 34292 /F && taskkill /PID 5148 /F)",
+      "Bash(powershell -Command \"Stop-Process -Id 34292 -Force; Stop-Process -Id 5148 -Force\")",
+      "mcp__ide__getDiagnostics",
+      "Bash(cd \"D:\\\\Proyectos\\\\front\\\\gestion-de-gastos\" && npm run dev 2>&1)",
+      "Bash(cd \"D:/Proyectos/front/gestion-de-gastos\" && npm run build 2>&1 | tail -60)",
+      "Bash(cd \"D:/Proyectos/front/gestion-de-gastos\" && npm run build 2>&1 | tail -20)",
+      "Bash(cd \"D:/Proyectos/front/gestion-de-gastos\" && npm run build 2>&1 | grep \"Error:\" | head -30)",
+      "Bash(cd \"D:/Proyectos/front/gestion-de-gastos\" && npm run build 2>&1 | tail -10)",
+      "Bash(cd \"D:/Proyectos/front/gestion-de-gastos\" && npm run build 2>&1 | grep -E \"Error:|Failed|✓|Route\" | head -20)",
+      "Bash(cd \"D:/Proyectos/front/gestion-de-gastos\" && npm run build 2>&1 | grep -E \"Error:|Failed|✓ Compiled|✓ Generating\" | head -10)"
+    ]
+  }
+}

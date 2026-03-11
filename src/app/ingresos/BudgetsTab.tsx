@@ -32,6 +32,7 @@ export default function BudgetsTab() {
 
   const handleSubmitBudget = async () => {
     if (!newBudget.name || !newBudget.amount) { show('Nombre y monto son requeridos', 'error'); return; }
+    if (!newBudget.categoryId) { show('Debés asignar una categoría al presupuesto', 'error'); return; }
     try {
       if (editingBudgetId) {
         await updateBudget(editingBudgetId, newBudget);
@@ -84,7 +85,7 @@ export default function BudgetsTab() {
               </div>
             </div>
             <div>
-              <label className={labelClass}>Categoría</label>
+              <label className={labelClass}>Categoría *</label>
               <CategorySelector
                 value={newBudget.categoryId ?? null}
                 onChange={id => setNewBudget({ ...newBudget, categoryId: id })}
