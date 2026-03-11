@@ -4,6 +4,7 @@ import { useState } from 'react';
 import IncomesTab from './IncomesTab';
 import BudgetsTab from './BudgetsTab';
 import AppShell from '../components/AppShell';
+import MonthNavigator from '../components/ui/MonthNavigator';
 
 export default function FinancePage() {
   const [activeTab, setActiveTab] = useState<'incomes' | 'budgets'>('incomes');
@@ -12,8 +13,13 @@ export default function FinancePage() {
     <AppShell>
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Gestión Financiera</h1>
-          <p className="text-sm text-slate-500 mt-1">Administrá tus ingresos y presupuestos</p>
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Gestión Financiera</h1>
+              <p className="text-sm text-slate-500 mt-1">Administrá tus ingresos y presupuestos</p>
+            </div>
+            <MonthNavigator />
+          </div>
         </div>
 
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-6">

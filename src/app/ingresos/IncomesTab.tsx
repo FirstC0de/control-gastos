@@ -22,14 +22,17 @@ const INCOME_DEFAULT: Omit<Income, 'id'> = {
   name: '', amount: 0, type: 'monthly',
   date: new Date().toISOString().split('T')[0],
   categoryId: null, currency: 'ARS',
+  recurring: false, recurringDay: undefined,
 };
 
 export default function IncomesTab() {
-  const { incomes, addIncome, updateIncome, deleteIncome, categories } = useFinance();
+  const { monthlyIncomes, addIncome, updateIncome, deleteIncome, categories, selectedMonth } = useFinance();
+  const incomes = monthlyIncomes;
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
 
-  const [newIncome, setNewIncome]               = useState<Omit<Income, 'id'>>({ ...INCOME_DEFAULT });
+  const defaultDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
+  const [newIncome, setNewIncome]               = useState<Omit<Income, 'id'>>({ ...INCOME_DEFAULT, date: defaultDate });
   const [editingIncomeId, setEditingIncomeId]   = useState<string | null>(null);
   const [deletingIncomeId, setDeletingIncomeId] = useState<string | null>(null);
 
@@ -61,12 +64,14 @@ export default function IncomesTab() {
   const startEditIncome = (income: Income) => {
     setEditingIncomeId(income.id);
     setNewIncome({
-      name:       income.name,
-      amount:     income.amount,
-      type:       income.type,
-      date:       income.date,
-      categoryId: income.categoryId ?? null,
-      currency:   income.currency ?? 'ARS',
+      name:         income.name,
+      amount:       income.amount,
+      type:         income.type,
+      date:         income.date,
+      categoryId:   income.categoryId ?? null,
+      currency:     income.currency ?? 'ARS',
+      recurring:    income.recurring ?? false,
+      recurringDay: income.recurringDay,
     });
   };
 
@@ -188,6 +193,34 @@ export default function IncomesTab() {
                 onChange={id => setNewIncome({ ...newIncome, categoryId: id })}
                 categoryType="income" className={inputClass} />
             </div>
+            <div>
+              <label className={labelClass}>Recurrente</label>
+              <div className="flex items-center gap-3 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newIncome.recurring ?? false}
+                    onChange={e => setNewIncome({ ...newIncome, recurring: e.target.checked })}
+                    className="w-4 h-4 rounded accent-indigo-600"
+                  />
+                  <span className="text-sm text-slate-700">Se repite mensualmente</span>
+                </label>
+              </div>
+            </div>
+            {newIncome.recurring && (
+              <div>
+                <label className={labelClass}>Día del mes</label>
+                <input
+                  type="number"
+                  min={1} max={28}
+                  value={newIncome.recurringDay ?? 1}
+                  onChange={e => setNewIncome({ ...newIncome, recurringDay: Math.min(28, Math.max(1, Number(e.target.value))) })}
+                  className={inputClass}
+                  placeholder="Ej: 1"
+                />
+                <p className="text-xs text-slate-400 mt-1">Se mostrará cada mes en este día</p>
+              </div>
+            )}
           </div>
           <div className="mt-5 flex justify-end gap-2">
             {editingIncomeId && (
@@ -272,6 +305,11 @@ export default function IncomesTab() {
                               {income.currency === 'USD' && (
                                 <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full font-medium">
                                   USD
+                                </span>
+                              )}
+                              {income.recurring && (
+                                <span className="ml-1.5 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full font-medium">
+                                  ↻ Recurrente
                                 </span>
                               )}
                             </p>

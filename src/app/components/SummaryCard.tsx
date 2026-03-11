@@ -8,7 +8,8 @@ import ConfirmModal from './ui/ConfirmModal';
 import { ToastContainer, useToast } from './ui/Toast';
 
 export default function SummaryCard() {
-  const { expenses, categories, budgets, deleteBudget, updateBudget } = useFinance();
+  const { monthlyExpenses, categories, budgets, deleteBudget, updateBudget } = useFinance();
+  const expenses = monthlyExpenses;
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);

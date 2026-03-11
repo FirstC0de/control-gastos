@@ -10,7 +10,8 @@ import BulkActionBar from './ui/BulkActionBar';
 import { ToastContainer, useToast } from './ui/Toast';
 
 export default function ExpenseList() {
-  const { expenses, updateExpense, deleteExpense, categories, cards } = useFinance();
+  const { monthlyExpenses, updateExpense, deleteExpense, categories, cards } = useFinance();
+  const expenses = monthlyExpenses;
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
 

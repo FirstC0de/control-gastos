@@ -5,11 +5,14 @@ import { useFinance } from '../context/FinanceContext';
 import { useExchangeRate } from '../context/ExchangeRateContext';
 import CardDashboardModal from './cards/CardDashboardModal';
 import ExchangeRateBadge from './ui/ExchangeRateBadge';
+import MonthNavigator from './ui/MonthNavigator';
 
 type ViewMode = 'combinado' | 'separado';
 
 export default function Dashboard() {
-  const { expenses, incomes } = useFinance();
+  const { monthlyExpenses, monthlyIncomes } = useFinance();
+  const expenses = monthlyExpenses;
+  const incomes = monthlyIncomes;
   const { blue } = useExchangeRate();
   const [modalOpen, setModalOpen] = useState(false);
   const [viewMode, setViewMode]   = useState<ViewMode>('combinado');
@@ -46,9 +49,10 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Resumen financiero del mes</p>
+            <p className="text-sm text-slate-400 mt-0.5">Resumen financiero mensual</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            <MonthNavigator />
             <ExchangeRateBadge />
             <button
               onClick={() => setModalOpen(true)}
