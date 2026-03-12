@@ -147,8 +147,8 @@ export default function Dashboard() {
             {/* Balance */}
             <div className={`rounded-2xl border p-6 shadow-sm hover:shadow-md transition-shadow group ${
               balanceCombinado >= 0
-                ? 'bg-gradient-to-br from-blue-600 to-blue-700 border-blue-500'
-                : 'bg-gradient-to-br from-rose-600 to-rose-700 border-rose-500'
+                ? 'bg-linear-to-br from-blue-600 to-blue-700 border-blue-500'
+                : 'bg-linear-to-br from-rose-600 to-rose-700 border-rose-500'
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">Balance</p>
@@ -184,17 +184,17 @@ export default function Dashboard() {
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pesos argentinos</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Ingresos ARS</p>
-                  <p className="text-2xl font-bold text-emerald-600">${fmt(totalARS_inc)}</p>
+                  <p className="text-2xl font-bold font-mono tabular-nums text-emerald-600">${fmt(totalARS_inc)}</p>
                 </div>
-                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Gastos ARS</p>
-                  <p className="text-2xl font-bold text-rose-600">${fmt(totalARS_exp)}</p>
+                  <p className="text-2xl font-bold font-mono tabular-nums text-rose-600">${fmt(totalARS_exp)}</p>
                 </div>
-                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Balance ARS</p>
-                  <p className={`text-2xl font-bold ${balanceARS >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                  <p className={`text-2xl font-bold font-mono tabular-nums ${balanceARS >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                     ${fmt(balanceARS)}
                   </p>
                 </div>
@@ -208,27 +208,27 @@ export default function Dashboard() {
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dólares</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl border border-emerald-200 p-5">
+                <div className="bg-white rounded-2xl border border-emerald-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Ingresos USD</p>
-                  <p className="text-2xl font-bold text-emerald-600">U$D {fmtUSD(totalUSD_inc)}</p>
+                  <p className="text-2xl font-bold font-mono tabular-nums text-emerald-600">U$D {fmtUSD(totalUSD_inc)}</p>
                   {blue > 0 && totalUSD_inc > 0 && (
-                    <p className="text-xs text-slate-400 mt-1">≈ ${fmt(totalUSD_inc_conv)} ARS</p>
+                    <p className="text-xs text-slate-400 font-mono tabular-nums mt-1">≈ ${fmt(totalUSD_inc_conv)} ARS</p>
                   )}
                 </div>
-                <div className="bg-white rounded-2xl border border-rose-200 p-5">
+                <div className="bg-white rounded-2xl border border-rose-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Gastos USD</p>
-                  <p className="text-2xl font-bold text-rose-600">U$D {fmtUSD(totalUSD_exp)}</p>
+                  <p className="text-2xl font-bold font-mono tabular-nums text-rose-600">U$D {fmtUSD(totalUSD_exp)}</p>
                   {blue > 0 && totalUSD_exp > 0 && (
-                    <p className="text-xs text-slate-400 mt-1">≈ ${fmt(totalUSD_exp_conv)} ARS</p>
+                    <p className="text-xs text-slate-400 font-mono tabular-nums mt-1">≈ ${fmt(totalUSD_exp_conv)} ARS</p>
                   )}
                 </div>
-                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Balance USD</p>
-                  <p className={`text-2xl font-bold ${balanceUSD >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                  <p className={`text-2xl font-bold font-mono tabular-nums ${balanceUSD >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
                     U$D {fmtUSD(balanceUSD)}
                   </p>
                   {blue > 0 && (
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-slate-400 font-mono tabular-nums mt-1">
                       ≈ ${fmt(balanceUSD * blue)} ARS
                     </p>
                   )}
