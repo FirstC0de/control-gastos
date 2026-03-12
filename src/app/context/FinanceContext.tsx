@@ -1,7 +1,7 @@
 'use client';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useExchangeRate } from './ExchangeRateContext';
 import {
   fetchExpenses,
@@ -50,14 +50,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [monthlyIncome, setMonthlyIncome] = useState<number>(0);
   const [cards, setCards] = useState<Card[]>([]);
   const { blue } = useExchangeRate();
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState({
+    year: now.getFullYear(),
+    month: now.getMonth(),
+  });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         fetchExpenses().then(data => {
-          const withCard = data.filter(e => e.cardId);
-          data.slice(0, 5).forEach(e => console.log(`[expense] "${e.description}" → cardId: ${e.cardId ?? 'null'}`));
-          console.log('[fetchExpenses] total:', data.length, '| withCardId:', withCard.length);
           setExpenses(data);
         }).catch(console.error);
         fetchIncomes().then(setIncomes).catch(console.error);
@@ -84,6 +86,48 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   // Convertir un monto a ARS usando dólar blue
   const toARS = (amount: number, currency: Currency = 'ARS'): number =>
     currency === 'USD' ? amount * (blue || 1) : amount;
+
+  const monthlyExpenses = useMemo(() => {
+    const { year, month } = selectedMonth;
+    const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+    return expenses.reduce<Expense[]>((acc, e) => {
+      if (e.recurring) {
+        const d = new Date(e.date + 'T12:00:00');
+        if (year > d.getFullYear() || (year === d.getFullYear() && month >= d.getMonth())) {
+          const day = e.recurringDay ?? d.getDate();
+          acc.push({
+            ...e,
+            date: `${key}-${String(Math.min(day, 28)).padStart(2, '0')}`,
+          });
+        }
+      } else {
+        // Usar monthYear si existe (gastos importados de PDF), sino usar date
+        const filterKey = e.monthYear ?? e.date.substring(0, 7);
+        if (filterKey === key) acc.push(e);
+      }
+      return acc;
+    }, []);
+  }, [expenses, selectedMonth]);
+
+  const monthlyIncomes = useMemo(() => {
+    const { year, month } = selectedMonth;
+    return incomes.reduce<Income[]>((acc, i) => {
+      if (i.recurring) {
+        const d = new Date(i.date + 'T12:00:00');
+        if (year > d.getFullYear() || (year === d.getFullYear() && month >= d.getMonth())) {
+          const day = i.recurringDay ?? d.getDate();
+          acc.push({
+            ...i,
+            date: `${year}-${String(month + 1).padStart(2, '0')}-${String(Math.min(day, 28)).padStart(2, '0')}`,
+          });
+        }
+      } else {
+        const d = new Date(i.date + 'T12:00:00');
+        if (d.getFullYear() === year && d.getMonth() === month) acc.push(i);
+      }
+      return acc;
+    }, []);
+  }, [incomes, selectedMonth]);
 
   // CRUD de tarjetas
   const addCard = async (c: Omit<Card, 'id'>) => {
@@ -180,35 +224,23 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const getRemainingBudget = (categoryId: string) => {
     const budget = budgets.find(b => b.categoryId === categoryId);
     if (!budget) return 0;
-    const spent = expenses
+    const spent = monthlyExpenses
       .filter(e => e.categoryId === categoryId)
-      .reduce((sum, e) => sum + e.amount, 0);
+      .reduce((sum, e) => sum + toARS(e.amount, e.currency ?? 'ARS'), 0);
     return budget.amount - spent;
   };
 
   const getTotalExpenses = (): number =>
-    expenses.reduce((sum, e) => sum + toARS(e.amount, e.currency ?? 'ARS'), 0);
+    monthlyExpenses.reduce((sum, e) => sum + toARS(e.amount, e.currency ?? 'ARS'), 0);
 
   const getTotalIncome = (): number =>
-    incomes.reduce((sum, i) => sum + toARS(i.amount, i.currency ?? 'ARS'), 0);
+    monthlyIncomes.reduce((sum, i) => sum + toARS(i.amount, i.currency ?? 'ARS'), 0);
 
   const getBalance = (): number => getTotalIncome() - getTotalExpenses();
 
   // Lógica de cuotas — cuánto pagar en un mes dado
   const getInstallmentSummary = (year: number, month: number, cardId?: string | 'all') => {
     // month es 0-indexed (igual que Date)
-    if (cardId && cardId !== 'all') {
-      const withCard    = expenses.filter(e => e.cardId);
-      const matchCard   = expenses.filter(e => e.cardId === cardId);
-      const cardIds     = [...new Set(expenses.map(e => e.cardId).filter(Boolean))];
-      console.log('[getInstallmentSummary]', {
-        filteringBy:       cardId,
-        totalExpenses:     expenses.length,
-        withCardId:        withCard.length,
-        matchingCard:      matchCard.length,
-        uniqueCardIds:     cardIds.join(' | '),
-      });
-    }
     const filtered = cardId && cardId !== 'all'
       ? expenses.filter(e => e.cardId === cardId)
       : expenses;
@@ -300,6 +332,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         getTotalExpenses,
         getTotalIncome,
         getBalance,
+        selectedMonth,
+        setSelectedMonth,
+        monthlyExpenses,
+        monthlyIncomes,
 
       }}
     >

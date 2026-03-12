@@ -8,7 +8,8 @@ import ConfirmModal from './ui/ConfirmModal';
 import { ToastContainer, useToast } from './ui/Toast';
 
 export default function SummaryCard() {
-  const { expenses, categories, budgets, deleteBudget, updateBudget } = useFinance();
+  const { monthlyExpenses, categories, budgets, deleteBudget, updateBudget } = useFinance();
+  const expenses = monthlyExpenses;
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
   const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
@@ -119,7 +120,7 @@ export default function SummaryCard() {
                               : <span className="text-xs text-amber-500">Sin categoría</span>
                             }
                             <span className="text-xs text-slate-400">·</span>
-                            <span className="text-xs font-semibold text-slate-700">${fmt(b.amount)}</span>
+                            <span className="text-xs font-semibold font-mono tabular-nums text-slate-700">${fmt(b.amount)}</span>
                           </div>
                         </div>
                         <div className="flex gap-1">
@@ -132,11 +133,11 @@ export default function SummaryCard() {
                       {b.category && (
                         <>
                           <div className="flex justify-between items-baseline mb-1">
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-slate-400 font-mono tabular-nums">
                               <span className="font-semibold text-slate-700">${fmt(b.spent)}</span>
                               <span className="text-slate-300"> / ${fmt(b.amount)}</span>
                             </span>
-                            <span className={`text-xs font-bold ${b.percentage > 80 ? 'text-rose-600' : b.percentage > 50 ? 'text-amber-500' : 'text-emerald-600'}`}>
+                            <span className={`text-xs font-bold tabular-nums ${b.percentage > 80 ? 'text-rose-600' : b.percentage > 50 ? 'text-amber-500' : 'text-emerald-600'}`}>
                               {b.percentage.toFixed(0)}%
                             </span>
                           </div>
@@ -145,7 +146,7 @@ export default function SummaryCard() {
                               b.percentage > 80 ? 'bg-rose-500' : b.percentage > 50 ? 'bg-amber-400' : 'bg-emerald-500'
                             }`} style={{ width: `${Math.min(100, b.percentage)}%` }} />
                           </div>
-                          <p className={`text-xs mt-1.5 font-bold ${b.remaining >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          <p className={`text-xs mt-1.5 font-bold font-mono tabular-nums ${b.remaining >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                             {b.remaining >= 0 ? `$${fmt(b.remaining)} disponible` : `$${fmt(Math.abs(b.remaining))} excedido`}
                           </p>
                         </>
@@ -177,8 +178,8 @@ export default function SummaryCard() {
                         <span className="text-xs font-medium text-slate-700 truncate">{name}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="text-sm font-bold text-slate-900">${fmt(data.amount)}</span>
-                        <span className="text-xs text-slate-400 w-8 text-right">
+                        <span className="text-sm font-bold font-mono tabular-nums text-slate-900">${fmt(data.amount)}</span>
+                        <span className="text-xs text-slate-400 tabular-nums w-8 text-right">
                           {(data.amount / totalCat * 100).toFixed(0)}%
                         </span>
                       </div>
@@ -191,7 +192,7 @@ export default function SummaryCard() {
                 ))}
                 <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
                   <span className="text-xs text-slate-500">Total gastos</span>
-                  <span className="text-sm font-bold text-slate-900">${fmt(totalCat)}</span>
+                  <span className="text-sm font-bold font-mono tabular-nums text-slate-900">${fmt(totalCat)}</span>
                 </div>
               </div>
             );

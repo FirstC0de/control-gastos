@@ -12,6 +12,9 @@ export type Expense = {
   installmentAmount?: number;
   currency?: Currency;
   comprobante?: string;
+  recurring?: boolean;
+  recurringDay?: number;
+  monthYear?: string; // "YYYY-MM" — mes al que pertenece el gasto en el dashboard
 };
 
 export type Card = {
@@ -31,6 +34,8 @@ export type Income = {
   date: string;
   categoryId?: string | null;
   currency?: Currency; // ← nuevo
+  recurring?: boolean;
+  recurringDay?: number;
 };
 
 export type Budget = {
@@ -88,6 +93,10 @@ export type FinanceContextType = {
   getTotalExpenses: () => number;
   getTotalIncome: () => number;
   getBalance: () => number;
+  selectedMonth: { year: number; month: number };
+  setSelectedMonth: (m: { year: number; month: number }) => void;
+  monthlyExpenses: Expense[];
+  monthlyIncomes: Income[];
 
   cards: Card[];
   addCard: (card: Omit<Card, 'id'>) => Promise<void>;

@@ -21,7 +21,7 @@ const BUDGET_DEFAULT: Omit<Budget, 'id' | 'spent'> = {
 };
 
 export default function BudgetsTab() {
-  const { budgets, addBudget, updateBudget, deleteBudget, expenses, categories } = useFinance();
+  const { budgets, addBudget, updateBudget, deleteBudget, monthlyExpenses, categories } = useFinance();
   const { toasts, show, remove } = useToast();
 
   const [newBudget, setNewBudget]               = useState<Omit<Budget, 'id' | 'spent'>>({ ...BUDGET_DEFAULT });
@@ -130,7 +130,7 @@ export default function BudgetsTab() {
             <ul className="divide-y divide-slate-100">
               {budgets.map(budget => {
                 const cat       = categories.find(c => c.id === budget.categoryId);
-                const spent     = expenses
+                const spent     = monthlyExpenses
                   .filter(e => e.categoryId === budget.categoryId)
                   .reduce((sum, e) => sum + e.amount, 0);
                 const remaining = budget.amount - spent;

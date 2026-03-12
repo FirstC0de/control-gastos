@@ -10,7 +10,8 @@ import BulkActionBar from './ui/BulkActionBar';
 import { ToastContainer, useToast } from './ui/Toast';
 
 export default function ExpenseList() {
-  const { expenses, updateExpense, deleteExpense, categories, cards } = useFinance();
+  const { monthlyExpenses, updateExpense, deleteExpense, categories, cards } = useFinance();
+  const expenses = monthlyExpenses;
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
 
@@ -270,7 +271,7 @@ export default function ExpenseList() {
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3 min-w-0">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-2.5 h-2.5 rounded-full shrink-0"
                               style={{ backgroundColor: cat?.color || '#cbd5e1' }} />
@@ -295,12 +296,12 @@ export default function ExpenseList() {
                           {/* Monto */}
                           <div className={`shrink-0 text-right ${!selectMode ? 'flex items-center gap-3' : ''}`}>
                             <div>
-                              <p className={`text-sm font-semibold ${isUSD ? 'text-emerald-700' : 'text-slate-900'}`}>
+                              <p className={`text-sm font-semibold font-mono tabular-nums ${isUSD ? 'text-emerald-700' : 'text-slate-900'}`}>
                                 {formatMonto(expense)}
                               </p>
                               {/* Conversión ARS si es USD */}
                               {isUSD && blue > 0 && (
-                                <p className="text-xs text-slate-400">
+                                <p className="text-xs text-slate-400 font-mono tabular-nums">
                                   ≈ ${(expense.amount * blue).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                                 </p>
                               )}

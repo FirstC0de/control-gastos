@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import CategorySelector from './categories/CategorySelector';
 import { Currency } from '../lib/types';
 
 export default function ExpenseForm() {
-  const { addExpense, cards } = useFinance();
+  const { addExpense, cards, selectedMonth } = useFinance();
   const [formData, setFormData] = useState({
     description:  '',
     amount:       0,
@@ -14,8 +14,18 @@ export default function ExpenseForm() {
     categoryId:   null as string | null,
     cardId:       null as string | null,
     installments: 1,
-    currency:     'ARS' as Currency, // ← estaba faltando
+    currency:     'ARS' as Currency,
+    recurring:    false,
+    recurringDay: 1 as number | undefined,
   });
+
+  // Reset date when month changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      date: `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`,
+    }));
+  }, [selectedMonth]);
   const [loading, setLoading] = useState(false);
 
   const installmentAmount = formData.installments > 1
@@ -27,22 +37,26 @@ export default function ExpenseForm() {
     if (!formData.description || formData.amount <= 0) return;
     setLoading(true);
     try {
+      const monthYear = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}`;
       await addExpense({
         description:        formData.description,
         amount:             formData.amount,
         date:               formData.date,
         categoryId:         formData.categoryId ?? undefined,
         cardId:             formData.cardId ?? undefined,
-        installments:       formData.installments,
+        installments:       formData.recurring ? 1 : formData.installments,
         currentInstallment: 1,
         installmentAmount:  parseFloat(installmentAmount.toFixed(2)),
         currency:           formData.currency,
+        recurring:          formData.recurring || undefined,
+        recurringDay:       formData.recurring ? formData.recurringDay : undefined,
+        monthYear,
       });
       setFormData({
         description: '', amount: 0,
-        date:        new Date().toISOString().split('T')[0],
-        categoryId:  null, cardId: null, installments: 1,
-        currency:    'ARS',
+        date: `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`,
+        categoryId: null, cardId: null, installments: 1,
+        currency: 'ARS', recurring: false, recurringDay: 1,
       });
     } catch (error) {
       console.error('Error al guardar el gasto:', error);
@@ -92,17 +106,19 @@ export default function ExpenseForm() {
         </div>
 
         {/* Cuotas */}
-        <div>
-          <label className={labelClass}>Cuotas</label>
-          <select value={formData.installments}
-            onChange={e => setFormData({ ...formData, installments: Number(e.target.value) })}
-            className={inputClass}>
-            <option value={1}>Contado</option>
-            {[2, 3, 6, 9, 12, 18, 24].map(n => (
-              <option key={n} value={n}>{n} cuotas</option>
-            ))}
-          </select>
-        </div>
+        {!formData.recurring && (
+          <div>
+            <label className={labelClass}>Cuotas</label>
+            <select value={formData.installments}
+              onChange={e => setFormData({ ...formData, installments: Number(e.target.value) })}
+              className={inputClass}>
+              <option value={1}>Contado</option>
+              {[2, 3, 6, 9, 12, 18, 24].map(n => (
+                <option key={n} value={n}>{n} cuotas</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Fecha */}
         <div>
@@ -131,6 +147,33 @@ export default function ExpenseForm() {
           <CategorySelector value={formData.categoryId}
             onChange={id => setFormData({ ...formData, categoryId: id })}
             categoryType="expense" className={inputClass} />
+        </div>
+
+        {/* Recurrente */}
+        <div className="sm:col-span-2 lg:col-span-3">
+          <div className="flex items-center gap-6 pt-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.recurring}
+                onChange={e => setFormData({ ...formData, recurring: e.target.checked })}
+                className="w-4 h-4 rounded accent-indigo-600"
+              />
+              <span className="text-sm font-medium text-slate-700">Gasto recurrente (mensual)</span>
+            </label>
+            {formData.recurring && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500">Día del mes:</label>
+                <input
+                  type="number" min={1} max={28}
+                  value={formData.recurringDay ?? 1}
+                  onChange={e => setFormData({ ...formData, recurringDay: Math.min(28, Math.max(1, Number(e.target.value))) })}
+                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <span className="text-xs text-slate-400">de cada mes</span>
+              </div>
+            )}
+          </div>
         </div>
 
       </div>

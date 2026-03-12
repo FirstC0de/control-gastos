@@ -9,15 +9,15 @@ export default function CardSummaryPDF() {
   const [generating, setGenerating] = useState(false);
 
   const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2 });
-  const now        = new Date();
-  const summary    = getInstallmentSummary(now.getFullYear(), now.getMonth(), selectedCardId);
+  const now = new Date();
+  const summary = getInstallmentSummary(now.getFullYear(), now.getMonth(), selectedCardId);
   const projection = getMonthlyProjection(6, selectedCardId);
 
-  const cashItems        = summary.cashItems;
+  const cashItems = summary.cashItems;
   const installmentItems = summary.installmentItems;
-  const totalCash        = cashItems.reduce((s, e) => s + e.amount, 0);
+  const totalCash = cashItems.reduce((s, e) => s + e.amount, 0);
   const totalInstallments = installmentItems.reduce((s, e) => s + (e.installmentAmount ?? 0), 0);
-  const totalMonth       = totalCash + totalInstallments;
+  const totalMonth = totalCash + totalInstallments;
 
   const generatePDF = async () => {
     setGenerating(true);
@@ -27,7 +27,7 @@ export default function CardSummaryPDF() {
 
       const doc = new jsPDF();
       const selectedCard = cards.find(c => c.id === selectedCardId);
-      const monthLabel   = now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+      const monthLabel = now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
 
       // Header
       doc.setFillColor(99, 102, 241);
@@ -51,11 +51,11 @@ export default function CardSummaryPDF() {
         head: [['Concepto', 'Monto']],
         body: [
           ['Gastos de contado', `$${fmt(totalCash)}`],
-          ['Cuotas del mes',    `$${fmt(totalInstallments)}`],
-          ['TOTAL A PAGAR',     `$${fmt(totalMonth)}`],
+          ['Cuotas del mes', `$${fmt(totalInstallments)}`],
+          ['TOTAL A PAGAR', `$${fmt(totalMonth)}`],
         ],
-        headStyles:  { fillColor: [99, 102, 241], textColor: 255 },
-        bodyStyles:  { fontSize: 10 },
+        headStyles: { fillColor: [99, 102, 241], textColor: 255 },
+        bodyStyles: { fontSize: 10 },
         columnStyles: { 1: { halign: 'right' } },
         didParseCell: (data) => {
           if (data.row.index === 2) {
@@ -167,20 +167,18 @@ export default function CardSummaryPDF() {
         </label>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setSelectedCardId('all')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-              selectedCardId === 'all'
-                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}>
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${selectedCardId === 'all'
+              ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+              : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}>
             Todas
           </button>
           {cards.map(card => (
             <button key={card.id} onClick={() => setSelectedCardId(card.id)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                selectedCardId === card.id
-                  ? 'text-white'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${selectedCardId === card.id
+                ? 'text-white'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
               style={selectedCardId === card.id ? { backgroundColor: card.color, borderColor: card.color } : {}}>
               {card.name}
             </button>
@@ -188,16 +186,23 @@ export default function CardSummaryPDF() {
         </div>
       </div>
 
-      {/* Cards de resumen */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+
+      {/* Cards de resumen - Con ancho automático */}
+      <div className="flex flex-wrap gap-3 sm:gap-4 mb-6">
         {[
-          { label: 'Contado',      value: totalCash,         color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Cuotas',       value: totalInstallments,  color: 'text-amber-600',   bg: 'bg-amber-50'   },
-          { label: 'Total del mes', value: totalMonth,        color: 'text-indigo-600',  bg: 'bg-indigo-50'  },
+          { label: 'Contado', value: totalCash, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Cuotas', value: totalInstallments, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Total del mes', value: totalMonth, color: 'text-indigo-600', bg: 'bg-indigo-50' },
         ].map(({ label, value, color, bg }) => (
-          <div key={label} className={`${bg} rounded-xl p-4`}>
-            <p className="text-xs font-medium text-slate-500 mb-1">{label}</p>
-            <p className={`text-xl font-bold ${color}`}>${fmt(value)}</p>
+          <div key={label} className={`${bg} rounded-xl p-3 sm:p-4 transition-all hover:shadow-md flex-1 min-w-35 sm:min-w-45`}>
+            <p className="text-xs font-medium text-slate-500 mb-1 whitespace-nowrap">{label}</p>
+            <p className={`text-xl sm:text-2xl font-bold ${color} break-all`}>
+              ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}
+            </p>
+            {/* Tooltip con valor exacto (opcional) */}
+            <p className="text-[10px] text-slate-400 mt-1 opacity-0 hover:opacity-100 transition-opacity">
+              {value.toLocaleString('es-AR')} ARS
+            </p>
           </div>
         ))}
       </div>

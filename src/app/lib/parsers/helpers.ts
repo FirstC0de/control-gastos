@@ -1,5 +1,5 @@
 export const parseAmount = (str: string): number =>
-    parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
+    parseFloat(str.replace(/\u2212/g, '-').replace(/\./g, '').replace(',', '.')) || 0;
 
 export const cleanDesc = (desc: string): string =>
     desc
