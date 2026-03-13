@@ -1,13 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import IncomesTab from './IncomesTab';
 import BudgetsTab from './BudgetsTab';
 import AppShell from '../components/AppShell';
 import MonthNavigator from '../components/ui/MonthNavigator';
 
 export default function FinancePage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'incomes' | 'budgets'>('incomes');
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'budgets') setActiveTab('budgets');
+  }, [searchParams]);
 
   return (
     <AppShell>

@@ -55,16 +55,7 @@ export default function CategorySelector({
           ))}
         </select>
 
-        {showManageButton && !disabled && (
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            title="Gestionar categorías"
-            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-gray-300 transition-colors text-sm"
-          >
-            🏷️
-          </button>
-        )}
+       
       </div>
 
       <CategoriesModal

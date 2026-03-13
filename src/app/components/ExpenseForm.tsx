@@ -3,10 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import CategorySelector from './categories/CategorySelector';
+import CategoriesModal from './categories/CategoriesModal';
+import RecurringToggle from './ui/RecurringToggle';
 import { Currency } from '../lib/types';
+
+const TagIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+  </svg>
+);
 
 export default function ExpenseForm() {
   const { addExpense, cards, selectedMonth } = useFinance();
+  const [showCatModal, setShowCatModal] = useState(false);
   const [formData, setFormData] = useState({
     description:  '',
     amount:       0,
@@ -70,13 +79,23 @@ export default function ExpenseForm() {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-semibold text-slate-900">Nuevo gasto</h2>
-        {formData.installments > 1 && formData.amount > 0 && (
-          <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-            {formData.installments} cuotas de {formData.currency === 'USD' ? 'U$D' : '$'}{installmentAmount.toFixed(2)}
-          </span>
-        )}
+      <div className="relative flex items-center justify-end -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+        <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">Nuevo gasto</h2>
+        <div className="flex items-center gap-2 relative z-10">
+          {formData.installments > 1 && formData.amount > 0 && (
+            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+              {formData.installments} cuotas de {formData.currency === 'USD' ? 'U$D' : '$'}{installmentAmount.toFixed(2)}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowCatModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors"
+          >
+            <TagIcon />
+            Gestionar categorías
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -150,40 +169,46 @@ export default function ExpenseForm() {
         </div>
 
         {/* Recurrente */}
-        <div className="sm:col-span-2 lg:col-span-3">
-          <div className="flex items-center gap-6 pt-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.recurring}
-                onChange={e => setFormData({ ...formData, recurring: e.target.checked })}
-                className="w-4 h-4 rounded accent-indigo-600"
-              />
-              <span className="text-sm font-medium text-slate-700">Gasto recurrente (mensual)</span>
-            </label>
-            {formData.recurring && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-slate-500">Día del mes:</label>
-                <input
-                  type="number" min={1} max={28}
-                  value={formData.recurringDay ?? 1}
-                  onChange={e => setFormData({ ...formData, recurringDay: Math.min(28, Math.max(1, Number(e.target.value))) })}
-                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <span className="text-xs text-slate-400">de cada mes</span>
-              </div>
-            )}
+        {formData.recurring && (
+          <div>
+            <label className={labelClass}>Día del mes</label>
+            <input
+              type="number" min={1} max={28}
+              value={formData.recurringDay ?? 1}
+              onChange={e => setFormData({ ...formData, recurringDay: Math.min(28, Math.max(1, Number(e.target.value))) })}
+              className={inputClass}
+              placeholder="1"
+            />
+            <p className="text-xs text-slate-400 mt-1">Se mostrará cada mes en este día</p>
           </div>
-        </div>
+        )}
 
+      </div>
+
+      {/* Toggle recurrente */}
+      <div className="mt-4 sm:max-w-sm">
+        <RecurringToggle
+          value={formData.recurring}
+          onChange={v => setFormData({ ...formData, recurring: v, recurringDay: v ? (formData.recurringDay ?? 1) : 1 })}
+          labelOn="Recurrente (mensual)"
+          labelOff="Gasto puntual"
+          descOn="Aparece automáticamente cada mes"
+          descOff="Solo para el mes seleccionado"
+        />
       </div>
 
       <div className="mt-5 flex justify-end">
         <button type="submit" disabled={loading}
           className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 transition-colors">
-          {loading ? 'Guardando...' : '+ Agregar gasto'}
+          {loading ? 'Guardando...' : 'Agregar gasto'}
         </button>
       </div>
+
+      <CategoriesModal
+        isOpen={showCatModal}
+        onClose={() => setShowCatModal(false)}
+        defaultType="expense"
+      />
     </form>
   );
 }

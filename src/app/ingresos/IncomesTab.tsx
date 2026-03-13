@@ -5,12 +5,20 @@ import { useFinance } from '../context/FinanceContext';
 import { useExchangeRate } from '../context/ExchangeRateContext';
 import { Income, Currency } from '../lib/types';
 import CategorySelector from '../components/categories/CategorySelector';
+import CategoriesModal from '../components/categories/CategoriesModal';
+import RecurringToggle from '../components/ui/RecurringToggle';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import BulkActionBar from '../components/ui/BulkActionBar';
 import { ToastContainer, useToast } from '../components/ui/Toast';
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow";
 const labelClass = "block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5";
+
+const TagIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+  </svg>
+);
 
 const INCOME_TYPES: { value: Income['type']; label: string }[] = [
   { value: 'monthly', label: 'Mensual' },
@@ -32,38 +40,42 @@ export default function IncomesTab() {
   const { toasts, show, remove } = useToast();
 
   const defaultDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
-  const [newIncome, setNewIncome]               = useState<Omit<Income, 'id'>>({ ...INCOME_DEFAULT, date: defaultDate });
-  const [editingIncomeId, setEditingIncomeId]   = useState<string | null>(null);
-  const [deletingIncomeId, setDeletingIncomeId] = useState<string | null>(null);
+  const [form, setForm]                       = useState<Omit<Income, 'id'>>({ ...INCOME_DEFAULT, date: defaultDate });
+  const [editingId, setEditingId]             = useState<string | null>(null);
+  const [deletingId, setDeletingId]           = useState<string | null>(null);
+  const [loading, setLoading]                 = useState(false);
+  const [showCatModal, setShowCatModal]       = useState(false);
 
-  const resetIncome = () => { setNewIncome({ ...INCOME_DEFAULT }); setEditingIncomeId(null); };
+  const reset = () => { setForm({ ...INCOME_DEFAULT, date: defaultDate }); setEditingId(null); };
 
-  const handleSubmitIncome = async () => {
-    if (!newIncome.name || !newIncome.amount) { show('Nombre y monto son requeridos', 'error'); return; }
+  const handleSubmit = async () => {
+    if (!form.name || !form.amount) { show('Nombre y monto son requeridos', 'error'); return; }
+    setLoading(true);
     try {
-      if (editingIncomeId) {
-        await updateIncome(editingIncomeId, newIncome);
+      if (editingId) {
+        await updateIncome(editingId, form);
         show('Ingreso actualizado', 'success');
       } else {
-        await addIncome(newIncome);
+        await addIncome(form);
         show('Ingreso agregado', 'success');
       }
-      resetIncome();
+      reset();
     } catch { show('Error al guardar ingreso', 'error'); }
+    finally { setLoading(false); }
   };
 
-  const handleDeleteIncome = async () => {
-    if (!deletingIncomeId) return;
+  const handleDelete = async () => {
+    if (!deletingId) return;
     try {
-      await deleteIncome(deletingIncomeId);
+      await deleteIncome(deletingId);
       show('Ingreso eliminado', 'warning');
-      setDeletingIncomeId(null);
+      setDeletingId(null);
     } catch { show('Error al eliminar ingreso', 'error'); }
   };
 
-  const startEditIncome = (income: Income) => {
-    setEditingIncomeId(income.id);
-    setNewIncome({
+  const startEdit = (income: Income) => {
+    setEditingId(income.id);
+    setForm({
       name:         income.name,
       amount:       income.amount,
       type:         income.type,
@@ -73,25 +85,23 @@ export default function IncomesTab() {
       recurring:    income.recurring ?? false,
       recurringDay: income.recurringDay,
     });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // ── Bulk ──────────────────────────────────────────────
-  const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting]     = useState(false);
-  const [selectMode, setSelectMode]         = useState(false);
+  const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectMode, setSelectMode]     = useState(false);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
-
-  const toggleSelectAll = () => {
+  const toggleSelectAll = () =>
     setSelectedIds(selectedIds.size === incomes.length ? new Set() : new Set(incomes.map(i => i.id)));
-  };
-
   const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
 
   const handleBulkDelete = async () => {
@@ -114,23 +124,21 @@ export default function IncomesTab() {
   const allSelected  = incomes.length > 0 && selectedIds.size === incomes.length;
   const someSelected = selectedIds.size > 0;
 
-  const fmtIncome = (income: Income) => {
-    if (income.currency === 'USD') {
-      return (
-        <div>
-          <p className="text-sm font-semibold text-emerald-700">
-            U$D {income.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+  const fmtAmount = (income: Income) => {
+    if (income.currency === 'USD') return (
+      <div>
+        <p className="text-sm font-semibold font-mono tabular-nums text-emerald-700">
+          U$D {income.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+        </p>
+        {blue > 0 && (
+          <p className="text-xs text-slate-400 font-mono tabular-nums">
+            ≈ ${(income.amount * blue).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
           </p>
-          {blue > 0 && (
-            <p className="text-xs text-slate-400">
-              ≈ ${(income.amount * blue).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-            </p>
-          )}
-        </div>
-      );
-    }
+        )}
+      </div>
+    );
     return (
-      <p className="text-sm font-semibold text-slate-900">
+      <p className="text-sm font-semibold font-mono tabular-nums text-slate-900">
         ${income.amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
       </p>
     );
@@ -140,127 +148,172 @@ export default function IncomesTab() {
     <>
       <section className="space-y-6">
 
-        {/* Formulario */}
+        {/* ── Formulario ─────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-base font-semibold text-slate-900 mb-5">
-            {editingIncomeId ? 'Editar ingreso' : 'Nuevo ingreso'}
-          </h2>
+          <div className="relative flex items-center justify-end -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">
+              {editingId ? 'Editar ingreso' : 'Nuevo ingreso'}
+            </h2>
+            <button
+              onClick={() => setShowCatModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors relative z-10"
+            >
+              <TagIcon />
+              Gestionar categorías
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Nombre */}
             <div>
               <label className={labelClass}>Nombre *</label>
-              <input type="text" value={newIncome.name}
-                onChange={e => setNewIncome({ ...newIncome, name: e.target.value })}
-                placeholder="Ej: Sueldo, Freelance..." className={inputClass} />
+              <input
+                type="text"
+                value={form.name}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="Ej: Sueldo, Freelance..."
+                className={inputClass}
+              />
             </div>
+
+            {/* Monto */}
             <div>
               <label className={labelClass}>Monto *</label>
               <div className="flex gap-2">
                 <select
-                  value={newIncome.currency ?? 'ARS'}
-                  onChange={e => setNewIncome({ ...newIncome, currency: e.target.value as Currency })}
-                  className="px-2 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0">
+                  value={form.currency ?? 'ARS'}
+                  onChange={e => setForm(p => ({ ...p, currency: e.target.value as Currency }))}
+                  className="px-2 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0"
+                >
                   <option value="ARS">$</option>
                   <option value="USD">U$D</option>
                 </select>
-                <input type="number" value={newIncome.amount || ''}
-                  onChange={e => setNewIncome({ ...newIncome, amount: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00" className={inputClass} min="0" step="0.01" />
+                <input
+                  type="number"
+                  value={form.amount || ''}
+                  onChange={e => setForm(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className={inputClass}
+                />
               </div>
-              {newIncome.currency === 'USD' && newIncome.amount > 0 && blue > 0 && (
+              {form.currency === 'USD' && form.amount > 0 && blue > 0 && (
                 <p className="text-xs text-slate-400 mt-1">
-                  ≈ ${(newIncome.amount * blue).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS (blue)
+                  ≈ ${(form.amount * blue).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS (blue)
                 </p>
               )}
             </div>
+
+            {/* Tipo */}
             <div>
               <label className={labelClass}>Tipo</label>
-              <select value={newIncome.type}
-                onChange={e => setNewIncome({ ...newIncome, type: e.target.value as Income['type'] })}
-                className={inputClass}>
+              <select
+                value={form.type}
+                onChange={e => setForm(p => ({ ...p, type: e.target.value as Income['type'] }))}
+                className={inputClass}
+              >
                 {INCOME_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
+
+            {/* Fecha */}
             <div>
               <label className={labelClass}>Fecha</label>
-              <input type="date" value={newIncome.date}
-                onChange={e => setNewIncome({ ...newIncome, date: e.target.value })}
-                className={inputClass} />
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+                className={inputClass}
+              />
             </div>
+
+            {/* Categoría */}
             <div>
               <label className={labelClass}>Categoría</label>
               <CategorySelector
-                value={newIncome.categoryId ?? null}
-                onChange={id => setNewIncome({ ...newIncome, categoryId: id })}
-                categoryType="income" className={inputClass} />
+                value={form.categoryId ?? null}
+                onChange={id => setForm(p => ({ ...p, categoryId: id }))}
+                categoryType="income"
+                className={inputClass}
+                showManageButton={false}
+              />
             </div>
-            <div>
-              <label className={labelClass}>Recurrente</label>
-              <div className="flex items-center gap-3 mt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newIncome.recurring ?? false}
-                    onChange={e => setNewIncome({ ...newIncome, recurring: e.target.checked })}
-                    className="w-4 h-4 rounded accent-indigo-600"
-                  />
-                  <span className="text-sm text-slate-700">Se repite mensualmente</span>
-                </label>
-              </div>
-            </div>
-            {newIncome.recurring && (
+
+            {/* Día recurrente (solo si recurring) */}
+            {form.recurring && (
               <div>
                 <label className={labelClass}>Día del mes</label>
                 <input
                   type="number"
                   min={1} max={28}
-                  value={newIncome.recurringDay ?? 1}
-                  onChange={e => setNewIncome({ ...newIncome, recurringDay: Math.min(28, Math.max(1, Number(e.target.value))) })}
+                  value={form.recurringDay ?? 1}
+                  onChange={e => setForm(p => ({ ...p, recurringDay: Math.min(28, Math.max(1, Number(e.target.value))) }))}
                   className={inputClass}
-                  placeholder="Ej: 1"
+                  placeholder="1"
                 />
                 <p className="text-xs text-slate-400 mt-1">Se mostrará cada mes en este día</p>
               </div>
             )}
           </div>
+
+          {/* Toggle recurrente */}
+          <div className="mt-4 sm:max-w-sm">
+            <RecurringToggle
+              value={form.recurring ?? false}
+              onChange={v => setForm(p => ({ ...p, recurring: v, recurringDay: v ? (p.recurringDay ?? 1) : undefined }))}
+              labelOn="Recurrente (mensual)"
+              labelOff="Ingreso puntual"
+              descOn="Aparece automáticamente cada mes"
+              descOff="Solo para el mes seleccionado"
+            />
+          </div>
+
+          {/* Acciones */}
           <div className="mt-5 flex justify-end gap-2">
-            {editingIncomeId && (
-              <button onClick={resetIncome}
-                className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+            {editingId && (
+              <button
+                onClick={reset}
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
                 Cancelar
               </button>
             )}
-            <button onClick={handleSubmitIncome}
-              className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">
-              {editingIncomeId ? 'Actualizar' : '+ Agregar ingreso'}
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'Guardando...' : editingId ? 'Actualizar ingreso' : 'Agregar ingreso'}
             </button>
           </div>
         </div>
 
-        {/* Lista */}
+        {/* ── Lista ──────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="px-6 py-4 border-b border-indigo-100 relative flex items-center rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50">
+            <div className="w-8 shrink-0">
               {selectMode && (
-                <div onClick={toggleSelectAll}
+                <div
+                  onClick={toggleSelectAll}
                   className={`w-5 h-5 rounded border-2 cursor-pointer flex items-center justify-center transition-colors ${
                     allSelected ? 'bg-indigo-600 border-indigo-600'
                     : someSelected ? 'bg-indigo-200 border-indigo-400'
                     : 'border-slate-300 hover:border-indigo-400'
-                  }`}>
-                  {allSelected && <span className="text-white text-xs">✓</span>}
+                  }`}
+                >
+                  {allSelected   && <span className="text-white text-xs">✓</span>}
                   {!allSelected && someSelected && <span className="text-indigo-600 text-xs font-bold">−</span>}
                 </div>
               )}
-              <h2 className="text-base font-semibold text-slate-900">Ingresos</h2>
-              <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
-                {incomes.length} registros
-              </span>
             </div>
+            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">Ingresos</h2>
             <button
               onClick={() => selectMode ? clearSelection() : setSelectMode(true)}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                 selectMode ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}>
+              }`}
+            >
               {selectMode ? '✕ Cancelar' : '☑ Seleccionar'}
             </button>
           </div>
@@ -278,55 +331,66 @@ export default function IncomesTab() {
                 const isSelected = selectedIds.has(income.id);
 
                 return (
-                  <li key={income.id}
-                    className={`px-6 py-4 transition-colors ${isSelected ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}>
+                  <li
+                    key={income.id}
+                    className={`px-6 py-3.5 transition-colors ${isSelected ? 'bg-indigo-50' : 'hover:bg-slate-50/70'}`}
+                  >
                     <div className="flex items-center gap-3">
                       {selectMode && (
-                        <div onClick={() => toggleSelect(income.id)}
+                        <div
+                          onClick={() => toggleSelect(income.id)}
                           className={`w-5 h-5 rounded border-2 cursor-pointer shrink-0 flex items-center justify-center transition-colors ${
                             isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 hover:border-indigo-400'
-                          }`}>
+                          }`}
+                        >
                           {isSelected && <span className="text-white text-xs">✓</span>}
                         </div>
                       )}
+
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat?.color || '#cbd5e1' }} />
+
                       <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: cat?.color || '#cbd5e1' }} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{income.name}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              {new Date(income.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                              {' · '}
-                              <span className="capitalize">
-                                {INCOME_TYPES.find(t => t.value === income.type)?.label}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate leading-tight">{income.name}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className="text-xs text-slate-400">
+                              {new Date(income.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                            </span>
+                            <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-full capitalize">
+                              {INCOME_TYPES.find(t => t.value === income.type)?.label}
+                            </span>
+                            {cat && (
+                              <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                                style={{ backgroundColor: cat.color + '18', color: cat.color }}>
+                                {cat.name}
                               </span>
-                              {cat && <> · <span style={{ color: cat.color }}>{cat.name}</span></>}
-                              {income.currency === 'USD' && (
-                                <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full font-medium">
-                                  USD
-                                </span>
-                              )}
-                              {income.recurring && (
-                                <span className="ml-1.5 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full font-medium">
-                                  ↻ Recurrente
-                                </span>
-                              )}
-                            </p>
+                            )}
+                            {income.currency === 'USD' && (
+                              <span className="text-xs px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-medium border border-emerald-100">
+                                USD
+                              </span>
+                            )}
+                            {income.recurring && (
+                              <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-medium border border-indigo-100">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                Recurrente
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <div className="shrink-0 flex items-center gap-3">
-                          <div className="text-right">{fmtIncome(income)}</div>
+
+                        <div className={`shrink-0 text-right ${!selectMode ? 'flex items-center gap-2' : ''}`}>
+                          <div>{fmtAmount(income)}</div>
                           {!selectMode && (
                             <div className="flex gap-1">
-                              <button onClick={() => startEditIncome(income)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                                ✏️
-                              </button>
-                              <button onClick={() => setDeletingIncomeId(income.id)}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
-                                🗑️
-                              </button>
+                              <button
+                                onClick={() => startEdit(income)}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              >✏️</button>
+                              <button
+                                onClick={() => setDeletingId(income.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              >🗑️</button>
                             </div>
                           )}
                         </div>
@@ -340,6 +404,11 @@ export default function IncomesTab() {
         </div>
       </section>
 
+      <CategoriesModal
+        isOpen={showCatModal}
+        onClose={() => setShowCatModal(false)}
+        defaultType="income"
+      />
       <BulkActionBar
         selectedCount={selectedIds.size}
         entityType="incomes"
@@ -347,22 +416,23 @@ export default function IncomesTab() {
         onChangeCategoryAll={handleBulkCategory}
         onClearSelection={clearSelection}
       />
-
       <ConfirmModal
         isOpen={bulkDeleting}
         title="Eliminar ingresos"
-        message={`¿Eliminar los ${selectedIds.size} ingresos seleccionados?`}
-        confirmLabel="Eliminar todos" danger
+        message={`¿Eliminar los ${selectedIds.size} ingresos seleccionados? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar todos"
+        danger
         onConfirm={handleBulkDelete}
         onCancel={() => setBulkDeleting(false)}
       />
       <ConfirmModal
-        isOpen={!!deletingIncomeId}
+        isOpen={!!deletingId}
         title="Eliminar ingreso"
-        message={`¿Eliminar "${incomes.find(i => i.id === deletingIncomeId)?.name}"?`}
-        confirmLabel="Eliminar" danger
-        onConfirm={handleDeleteIncome}
-        onCancel={() => setDeletingIncomeId(null)}
+        message={`¿Eliminar "${incomes.find(i => i.id === deletingId)?.name}"?`}
+        confirmLabel="Eliminar"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setDeletingId(null)}
       />
       <ToastContainer toasts={toasts} onRemove={remove} />
     </>
