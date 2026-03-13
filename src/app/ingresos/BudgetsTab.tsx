@@ -59,7 +59,7 @@ export default function BudgetsTab() {
 
     try {
       if (editingId) {
-        await updateBudget(editingId, { ...form, monthYear: monthYear ?? null });
+        await updateBudget(editingId, { ...form, monthYear: monthYear ?? undefined });
         show('Presupuesto actualizado', 'success');
       } else {
         await addBudget({ ...form, ...(monthYear ? { monthYear } : {}) });
