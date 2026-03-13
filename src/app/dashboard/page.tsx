@@ -6,7 +6,6 @@ import ExpenseForm from '../components/ExpenseForm';
 import ExpenseList from '../components/ExpenseList';
 import SummaryCard from '../components/SummaryCard';
 import CardSummaryPDF from '../components/cards/CardSummaryPDF';
-
 export default function DashboardPage() {
   return (
     <AppShell>

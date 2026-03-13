@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useFinance } from '../context/FinanceContext';
+import { useNotifications } from '../context/NotificationContext';
+import NotificationPanel from './ui/NotificationPanel';
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
 
@@ -26,12 +29,28 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    href: '/metricas',
+    label: 'Métricas',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+      </svg>
+    ),
+  },
 ];
 
 function SidebarInner({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { getBudgetStatus } = useFinance();
+  const { unreadCount } = useNotifications();
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  const budgetStatuses = getBudgetStatus();
+  const hasExceeded = budgetStatuses.some(s => s.status === 'exceeded');
+  const hasWarning  = budgetStatuses.some(s => s.status === 'warning');
 
   const handleLogout = async () => {
     await logout();
@@ -73,11 +92,48 @@ function SidebarInner({ onLinkClick }: { onLinkClick?: () => void }) {
                 {item.icon}
               </span>
               {item.label}
-              {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/50" />}
+              <div className="ml-auto flex items-center gap-1.5">
+                {item.href === '/ingresos' && (hasExceeded || hasWarning) && (
+                  <span
+                    className={`w-2 h-2 rounded-full ${hasExceeded ? 'bg-rose-500' : 'bg-amber-400'}`}
+                    title={hasExceeded ? 'Presupuesto excedido' : 'Presupuesto cerca del límite'}
+                  />
+                )}
+                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white/50" />}
+              </div>
             </Link>
           );
         })}
       </nav>
+
+      {/* Notification bell */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={() => setNotifOpen(v => !v)}
+          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative ${
+            notifOpen
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+          }`}
+        >
+          <span className={`relative transition-colors ${notifOpen ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-0.5 flex items-center justify-center text-[10px] font-bold bg-rose-500 text-white rounded-full leading-none ring-2 ring-slate-900">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </span>
+          Notificaciones
+          {unreadCount > 0 && !notifOpen && (
+            <span className="ml-auto w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+          )}
+        </button>
+      </div>
+
+      {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
 
       {/* User section */}
       <div className="px-3 pb-4 pt-2 border-t border-slate-700/60 space-y-1">

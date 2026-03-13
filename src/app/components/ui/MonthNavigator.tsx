@@ -77,7 +77,7 @@ export default function MonthNavigator() {
       {/* Label — abre el picker */}
       <button
         onClick={() => { setPickerYear(year); setOpen(o => !o); }}
-        className={`px-3 py-1 text-sm font-semibold rounded-lg capitalize min-w-36 text-center transition-all ${
+        className={`px-3 py-1 text-sm font-semibold rounded-lg capitalize w-44 text-center transition-all ${
           open
             ? 'bg-indigo-600 text-white shadow-sm'
             : 'text-slate-800 hover:bg-white hover:shadow-sm'

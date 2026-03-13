@@ -3,6 +3,8 @@ import './styles/globals.css';
 import { FinanceProvider } from './context/FinanceContext';
 import { AuthProvider } from './context/AuthContext';
 import { ExchangeRateProvider } from './context/ExchangeRateContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
   title: 'Controlados $ — Gestión de gastos',
@@ -16,7 +18,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ExchangeRateProvider>
             <FinanceProvider>
-              {children}
+              <NotificationProvider>
+                {children}
+                <Toaster
+                  position="bottom-right"
+                  toastOptions={{
+                    style: { fontFamily: 'Inter, sans-serif' },
+                  }}
+                />
+              </NotificationProvider>
             </FinanceProvider>
           </ExchangeRateProvider>
         </AuthProvider>

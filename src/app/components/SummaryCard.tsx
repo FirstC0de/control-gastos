@@ -40,8 +40,11 @@ export default function SummaryCard() {
       .reduce((s, e) => s + (e.currency === 'USD' ? e.amount * (blue || 0) : e.amount), 0);
     const remaining  = b.amount - spent;
     const percentage = b.amount > 0 ? (spent / b.amount) * 100 : 0;
-    return { ...b, cat, spent, remaining, percentage };
-  });
+    const threshold  = b.alertThreshold ?? 80;
+    const status: 'ok' | 'warning' | 'exceeded' =
+      percentage >= 100 ? 'exceeded' : percentage >= threshold ? 'warning' : 'ok';
+    return { ...b, cat, spent, remaining, percentage, status };
+  }).sort((a, b) => b.percentage - a.percentage); // más críticos primero
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
@@ -49,7 +52,7 @@ export default function SummaryCard() {
       {/* ── Presupuestos ────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Presupuestos</h3>
+          <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Presupuestos</h3>
           <Link
             href="/ingresos?tab=budgets"
             className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
@@ -72,11 +75,15 @@ export default function SummaryCard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {budgetsWithData.map(b => (
+            {budgetsWithData.slice(0, 3).map(b => (
               <div
                 key={b.id}
-                className="rounded-xl border border-slate-100 p-3"
-                style={{ borderLeftColor: b.cat?.color, borderLeftWidth: 3 }}
+                className={`rounded-xl border p-3 transition-colors ${
+                  b.status === 'exceeded' ? 'border-rose-200 bg-rose-50/50' :
+                  b.status === 'warning'  ? 'border-amber-200 bg-amber-50/30' :
+                  'border-slate-100'
+                }`}
+                style={{ borderLeftColor: b.cat?.color ?? undefined, borderLeftWidth: 3 }}
               >
                 {!b.cat && (
                   <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">
@@ -84,11 +91,17 @@ export default function SummaryCard() {
                   </p>
                 )}
                 <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-slate-900">{b.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{b.name}</p>
                       {b.recurring && (
-                        <span className="text-indigo-400" title="Recurrente"><RepeatIcon /></span>
+                        <span className="text-indigo-400 shrink-0" title="Recurrente"><RepeatIcon /></span>
+                      )}
+                      {b.status === 'exceeded' && (
+                        <span className="text-xs px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded-full font-semibold shrink-0">Excedido</span>
+                      )}
+                      {b.status === 'warning' && (
+                        <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold shrink-0">Alerta</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -111,13 +124,19 @@ export default function SummaryCard() {
                         <span className="font-semibold text-slate-700">${fmt(b.spent)}</span>
                         <span className="text-slate-300"> / ${fmt(b.amount)}</span>
                       </span>
-                      <span className={`text-xs font-bold tabular-nums ${b.percentage > 80 ? 'text-rose-600' : b.percentage > 50 ? 'text-amber-500' : 'text-emerald-600'}`}>
+                      <span className={`text-xs font-bold tabular-nums ${
+                        b.status === 'exceeded' ? 'text-rose-600' :
+                        b.status === 'warning'  ? 'text-amber-500' : 'text-emerald-600'
+                      }`}>
                         {b.percentage.toFixed(0)}%
                       </span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-1.5">
                       <div
-                        className={`h-1.5 rounded-full transition-all ${b.percentage > 80 ? 'bg-rose-500' : b.percentage > 50 ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                        className={`h-1.5 rounded-full transition-all ${
+                          b.status === 'exceeded' ? 'bg-rose-500' :
+                          b.status === 'warning'  ? 'bg-amber-400' : 'bg-emerald-500'
+                        }`}
                         style={{ width: `${Math.min(100, b.percentage)}%` }}
                       />
                     </div>
@@ -128,13 +147,21 @@ export default function SummaryCard() {
                 )}
               </div>
             ))}
+            {budgetsWithData.length > 3 && (
+              <Link
+                href="/ingresos?tab=budgets"
+                className="block text-center text-xs font-medium text-indigo-600 hover:text-indigo-800 py-1 transition-colors"
+              >
+                +{budgetsWithData.length - 3} más →
+              </Link>
+            )}
           </div>
         )}
       </div>
 
       {/* ── Gastos por categoría ────────────────────────── */}
       <div>
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Por categoría</h3>
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3">Por categoría</h3>
         {Object.keys(expensesByCategory).length === 0 ? (
           <p className="text-xs text-slate-400 text-center py-4">Sin gastos registrados</p>
         ) : (() => {
