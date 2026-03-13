@@ -90,8 +90,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const monthlyExpenses = useMemo(() => {
     const { year, month } = selectedMonth;
     const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+    // month is 0-indexed; absolute month index for math
+    const selAbsMonth = year * 12 + month;
+
     return expenses.reduce<Expense[]>((acc, e) => {
       if (e.recurring) {
+        // Recurring: aparece cada mes desde su fecha de alta
         const d = new Date(e.date + 'T12:00:00');
         if (year > d.getFullYear() || (year === d.getFullYear() && month >= d.getMonth())) {
           const day = e.recurringDay ?? d.getDate();
@@ -100,14 +104,44 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             date: `${key}-${String(Math.min(day, 28)).padStart(2, '0')}`,
           });
         }
+      } else if ((e.installments ?? 1) > 1) {
+        // Cuotas: expandir a todos los meses que corresponden
+        const instNum    = e.installments!;
+        const curInst    = e.currentInstallment ?? 1;
+        const baseKey    = e.monthYear ?? e.date.substring(0, 7); // mes de ESTA cuota
+        const [bYearStr, bMonthStr] = baseKey.split('-');
+        // bMonthStr es 1-indexed ("01"=enero), convertir a 0-indexed para la matemática
+        const baseAbsMonth  = parseInt(bYearStr) * 12 + (parseInt(bMonthStr) - 1);
+        const firstAbsMonth = baseAbsMonth - (curInst - 1); // mes de la cuota 1
+        const lastAbsMonth  = firstAbsMonth + (instNum - 1);
+
+        if (selAbsMonth >= firstAbsMonth && selAbsMonth <= lastAbsMonth) {
+          const instForThisMonth = selAbsMonth - firstAbsMonth + 1;
+          acc.push({
+            ...e,
+            currentInstallment: instForThisMonth,
+            // Mostrar monto por cuota (installmentAmount tiene prioridad sobre amount/N)
+            amount: e.installmentAmount ?? parseFloat((e.amount / instNum).toFixed(2)),
+          });
+        }
       } else {
-        // Usar monthYear si existe (gastos importados de PDF), sino usar date
+        // Gasto normal (contado)
         const filterKey = e.monthYear ?? e.date.substring(0, 7);
         if (filterKey === key) acc.push(e);
       }
       return acc;
     }, []);
   }, [expenses, selectedMonth]);
+
+  const monthlyBudgets = useMemo(() => {
+    const { year, month } = selectedMonth;
+    const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+    return budgets.filter(b => {
+      if (b.recurring) return true;        // recurrente → siempre visible
+      if (b.monthYear) return b.monthYear === key; // mensual → solo su mes
+      return true;                          // legacy (sin campo) → siempre visible
+    });
+  }, [budgets, selectedMonth]);
 
   const monthlyIncomes = useMemo(() => {
     const { year, month } = selectedMonth;
@@ -336,6 +370,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         setSelectedMonth,
         monthlyExpenses,
         monthlyIncomes,
+        monthlyBudgets,
 
       }}
     >

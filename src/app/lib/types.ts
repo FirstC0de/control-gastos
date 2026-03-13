@@ -45,6 +45,8 @@ export type Budget = {
   amount: number;
   spent?: number;
   period: 'monthly' | 'weekly' | 'custom';
+  monthYear?: string;  // "YYYY-MM" — mes al que pertenece (si no es recurrente)
+  recurring?: boolean; // si se repite cada mes
 };
 
 export type CategoryType = 'expense' | 'income' | 'both';
@@ -86,6 +88,7 @@ export type FinanceContextType = {
   addBudget: (budget: Omit<Budget, 'id'>) => Promise<void>;
   updateBudget: (id: string, updates: Partial<Budget>) => Promise<void>;
   deleteBudget: (id: string) => Promise<void>;
+  monthlyBudgets: Budget[];
 
   // Ingreso mensual y utilidades
   setMonthlyIncome: (amount: number) => Promise<void>;
