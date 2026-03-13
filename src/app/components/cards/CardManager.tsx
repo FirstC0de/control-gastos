@@ -51,7 +51,7 @@ export default function CardManager() {
   };
 
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500";
-  const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5";
+  const labelClass = "block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5";
 
   return (
     <>
@@ -132,7 +132,7 @@ export default function CardManager() {
         {/* Lista de tarjetas */}
         {cards.length > 0 && (
           <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tus tarjetas</h3>
+            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Tus tarjetas</h3>
             {cards.map(card => (
               <div key={card.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100">
                 <div className="flex items-center gap-3">

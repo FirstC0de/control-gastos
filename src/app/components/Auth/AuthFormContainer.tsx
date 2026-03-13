@@ -13,7 +13,7 @@ export default function AuthFormContainer({
   title, subtitle, children, footerText, footerLink, footerLinkText
 }: Props) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-950 via-blue-950 to-slate-900 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Background pattern */}
       <div className="fixed inset-0 opacity-[0.04] pointer-events-none"
         style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '28px 28px' }} />

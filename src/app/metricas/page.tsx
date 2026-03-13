@@ -81,7 +81,7 @@ function MetricCard({ label, value, sub, color, icon }: {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+        <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{label}</p>
         <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${styles[color].icon}`}>{icon}</div>
       </div>
       <p className={`text-2xl font-bold font-mono tracking-tight ${styles[color].text}`}>{value}</p>

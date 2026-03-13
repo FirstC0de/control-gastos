@@ -47,6 +47,17 @@ export type Budget = {
   period: 'monthly' | 'weekly' | 'custom';
   monthYear?: string;  // "YYYY-MM" — mes al que pertenece (si no es recurrente)
   recurring?: boolean; // si se repite cada mes
+  alertThreshold?: number; // % para alertar (ej: 80). Default: 80
+};
+
+export type BudgetStatus = {
+  budget: Budget;
+  categoryName: string | null;
+  budgetAmount: number;
+  spentAmount: number;
+  remaining: number;
+  percentageUsed: number;
+  status: 'ok' | 'warning' | 'exceeded';
 };
 
 export type CategoryType = 'expense' | 'income' | 'both';
@@ -100,6 +111,9 @@ export type FinanceContextType = {
   setSelectedMonth: (m: { year: number; month: number }) => void;
   monthlyExpenses: Expense[];
   monthlyIncomes: Income[];
+
+  getBudgetStatus: () => BudgetStatus[];
+  copyBudgetsFromPreviousMonth: () => Promise<number>;
 
   cards: Card[];
   addCard: (card: Omit<Card, 'id'>) => Promise<void>;

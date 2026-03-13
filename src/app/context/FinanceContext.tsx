@@ -2,6 +2,7 @@
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useExchangeRate } from './ExchangeRateContext';
 import {
   fetchExpenses,
@@ -31,6 +32,7 @@ import {
   Expense,
   Income,
   Budget,
+  BudgetStatus,
   Category,
   CategoryType,
   FinanceContextType,
@@ -184,48 +186,57 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const addExpense = async (e: Omit<Expense, 'id'>) => {
     const newExp = await apiCreateExpense(e);
     setExpenses(prev => [...prev, newExp]);
+    toast.success('Gasto agregado');
   };
 
   const updateExpense = async (id: string, updates: Partial<Expense>) => {
-    const updated = await apiUpdateExpense(id, updates); // ← viene de lib/api.ts
+    const updated = await apiUpdateExpense(id, updates);
     setExpenses(prev => prev.map(x => x.id === id ? updated : x));
+    toast.success('Gasto actualizado');
   };
 
   const deleteExpense = async (id: string) => {
     await apiDeleteExpense(id);
     setExpenses(prev => prev.filter(x => x.id !== id));
+    toast.success('Gasto eliminado');
   };
 
   // --- INGRESOS ---
   const addIncome = async (i: Omit<Income, 'id'>) => {
     const newInc = await apiCreateIncome(i);
     setIncomes(prev => [...prev, newInc]);
+    toast.success('Ingreso agregado');
   };
 
   const updateIncome = async (id: string, updates: Partial<Income>) => {
     const updated = await apiUpdateIncome(id, updates);
     setIncomes(prev => prev.map(x => x.id === id ? updated : x));
+    toast.success('Ingreso actualizado');
   };
 
   const deleteIncome = async (id: string) => {
     await apiDeleteIncome(id);
     setIncomes(prev => prev.filter(x => x.id !== id));
+    toast.success('Ingreso eliminado');
   };
 
   // --- PRESUPUESTOS ---
   const addBudget = async (b: Omit<Budget, 'id'>) => {
     const newBud = await apiCreateBudget(b);
     setBudgets(prev => [...prev, newBud]);
+    toast.success('Presupuesto creado');
   };
 
   const updateBudget = async (id: string, updates: Partial<Budget>) => {
     const updated = await apiUpdateBudget(id, updates);
     setBudgets(prev => prev.map(x => x.id === id ? updated : x));
+    toast.success('Presupuesto actualizado');
   };
 
   const deleteBudget = async (id: string) => {
     await apiDeleteBudget(id);
     setBudgets(prev => prev.filter(x => x.id !== id));
+    toast.success('Presupuesto eliminado');
   };
 
   // --- CATEGORÍAS ---
@@ -315,6 +326,61 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
 
+  // --- ESTADO DE PRESUPUESTOS ---
+  const getBudgetStatus = (): BudgetStatus[] => {
+    return monthlyBudgets.map(b => {
+      const cat = categories.find(c => c.id === b.categoryId);
+      const spentAmount = monthlyExpenses
+        .filter(e => e.categoryId === b.categoryId)
+        .reduce((s, e) => s + toARS(e.amount, e.currency ?? 'ARS'), 0);
+      const budgetAmount = b.amount;
+      const remaining = budgetAmount - spentAmount;
+      const percentageUsed = budgetAmount > 0 ? (spentAmount / budgetAmount) * 100 : 0;
+      const threshold = b.alertThreshold ?? 80;
+      const status: BudgetStatus['status'] =
+        percentageUsed >= 100 ? 'exceeded' :
+        percentageUsed >= threshold ? 'warning' : 'ok';
+      return {
+        budget: b,
+        categoryName: cat?.name ?? null,
+        budgetAmount,
+        spentAmount,
+        remaining,
+        percentageUsed,
+        status,
+      };
+    });
+  };
+
+  // --- COPIAR PRESUPUESTOS DEL MES ANTERIOR ---
+  const copyBudgetsFromPreviousMonth = async (): Promise<number> => {
+    const { year, month } = selectedMonth;
+    const prevDate = new Date(year, month - 1, 1);
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    const curKey  = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+    const prevBudgets = budgets.filter(b => !b.recurring && b.monthYear === prevKey);
+    const curBudgets  = budgets.filter(b => !b.recurring && b.monthYear === curKey);
+
+    const toCreate = prevBudgets.filter(pb =>
+      !curBudgets.some(cb => cb.name === pb.name && cb.categoryId === pb.categoryId)
+    );
+
+    await Promise.all(toCreate.map(pb =>
+      addBudget({
+        name: pb.name,
+        categoryId: pb.categoryId ?? null,
+        amount: pb.amount,
+        period: pb.period,
+        recurring: false,
+        monthYear: curKey,
+        alertThreshold: pb.alertThreshold,
+      })
+    ));
+
+    return toCreate.length;
+  };
+
   // Proyección de los próximos N meses
   const getMonthlyProjection = (months: number = 6, cardId?: string | 'all') => {
     const now = new Date();
@@ -371,7 +437,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         monthlyExpenses,
         monthlyIncomes,
         monthlyBudgets,
-
+        getBudgetStatus,
+        copyBudgetsFromPreviousMonth,
       }}
     >
       {children}

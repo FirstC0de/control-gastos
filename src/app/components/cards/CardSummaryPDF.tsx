@@ -162,7 +162,7 @@ export default function CardSummaryPDF() {
 
       {/* Selector de tarjeta */}
       <div className="mb-6">
-        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
           Filtrar por tarjeta
         </label>
         <div className="flex flex-wrap gap-2">
@@ -209,7 +209,7 @@ export default function CardSummaryPDF() {
 
       {/* Proyección visual */}
       <div>
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3">
           Próximos 6 meses
         </h3>
         <div className="space-y-2">

@@ -204,7 +204,7 @@ export default function LandingPage() {
 
                 {/* Expense list */}
                 <div className="bg-slate-800/50 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Últimos movimientos</p>
+                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Últimos movimientos</p>
                   {[
                     { desc: 'Supermercado Día', cat: 'Alimentación', amount: '-$8.500', color: 'bg-orange-400' },
                     { desc: 'Netflix', cat: 'Entretenimiento', amount: '-$2.990', color: 'bg-red-400' },

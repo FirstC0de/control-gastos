@@ -94,7 +94,7 @@ export default function Dashboard() {
             {/* Ingresos */}
             <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ingresos</p>
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Ingresos</p>
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
                   <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
@@ -120,7 +120,7 @@ export default function Dashboard() {
             {/* Gastos */}
             <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Gastos</p>
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Gastos</p>
                 <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center group-hover:bg-rose-100 transition-colors">
                   <svg className="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />
@@ -181,7 +181,7 @@ export default function Dashboard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-slate-400" />
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pesos argentinos</p>
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Pesos argentinos</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22">
@@ -205,7 +205,7 @@ export default function Dashboard() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dólares</p>
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Dólares</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white rounded-2xl border border-emerald-200 p-5 flex flex-col justify-between min-h-22">

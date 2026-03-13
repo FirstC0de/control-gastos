@@ -317,7 +317,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                 </span>
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">Categoría de los seleccionados</span>
+                                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider shrink-0">Categoría de los seleccionados</span>
                                 <CategorySelector
                                     value={bulkCategory}
                                     onChange={id => {

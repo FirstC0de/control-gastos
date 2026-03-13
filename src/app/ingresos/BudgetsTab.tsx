@@ -20,13 +20,14 @@ const inputClass  = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl
 const labelClass  = "block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5";
 
 const EMPTY: Omit<Budget, 'id' | 'spent'> = {
-  name: '', categoryId: null, amount: 0, period: 'monthly', recurring: false,
+  name: '', categoryId: null, amount: 0, period: 'monthly', recurring: false, alertThreshold: 80,
 };
 
 export default function BudgetsTab() {
   const {
     budgets, monthlyBudgets, monthlyExpenses, categories,
     addBudget, updateBudget, deleteBudget, selectedMonth,
+    copyBudgetsFromPreviousMonth,
   } = useFinance();
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
@@ -36,6 +37,7 @@ export default function BudgetsTab() {
   const [deletingId, setDeletingId]             = useState<string | null>(null);
   const [loading, setLoading]                   = useState(false);
   const [showCatModal, setShowCatModal]         = useState(false);
+  const [copying, setCopying]                   = useState(false);
 
   const monthLabel = new Date(selectedMonth.year, selectedMonth.month, 1)
     .toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
@@ -44,7 +46,7 @@ export default function BudgetsTab() {
 
   const startEdit = (b: Budget) => {
     setEditingId(b.id);
-    setForm({ name: b.name, categoryId: b.categoryId ?? null, amount: b.amount, period: b.period, recurring: b.recurring ?? false });
+    setForm({ name: b.name, categoryId: b.categoryId ?? null, amount: b.amount, period: b.period, recurring: b.recurring ?? false, alertThreshold: b.alertThreshold ?? 80 });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -68,6 +70,16 @@ export default function BudgetsTab() {
       reset();
     } catch { show('Error al guardar el presupuesto', 'error'); }
     finally { setLoading(false); }
+  };
+
+  const handleCopyFromPrevMonth = async () => {
+    setCopying(true);
+    try {
+      const count = await copyBudgetsFromPreviousMonth();
+      if (count > 0) show(`${count} presupuesto${count !== 1 ? 's' : ''} copiado${count !== 1 ? 's' : ''} del mes anterior`, 'success');
+      else show('No hay presupuestos nuevos para copiar', 'warning');
+    } catch { show('Error al copiar presupuestos', 'error'); }
+    finally { setCopying(false); }
   };
 
   const handleDelete = async () => {
@@ -153,6 +165,22 @@ export default function BudgetsTab() {
                 showManageButton={false}
               />
             </div>
+
+            {/* Umbral de alerta */}
+            <div>
+              <label className={labelClass}>Alerta al <span className="text-indigo-600">{form.alertThreshold ?? 80}%</span></label>
+              <div className="flex items-center gap-3 pt-1.5">
+                <input
+                  type="range"
+                  min={50} max={100} step={5}
+                  value={form.alertThreshold ?? 80}
+                  onChange={e => setForm(p => ({ ...p, alertThreshold: parseInt(e.target.value) }))}
+                  className="flex-1 h-2 rounded-full accent-indigo-600 cursor-pointer"
+                />
+                <span className="text-xs font-mono text-slate-500 w-8 text-right">{form.alertThreshold ?? 80}%</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Aviso cuando el gasto supere este porcentaje</p>
+            </div>
           </div>
 
           {/* Toggle recurrente */}
@@ -190,10 +218,20 @@ export default function BudgetsTab() {
         {/* ── Lista ──────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200">
           <div className="px-6 py-4 border-b border-indigo-100 relative flex items-center rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50">
-            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">Presupuestos</h2>
             <span className="text-xs font-medium text-slate-500 bg-white/70 px-2.5 py-1 rounded-full">
               {budgetsWithData.length} activos · {budgets.filter(b => b.recurring).length} recurrentes
             </span>
+            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">Presupuestos</h2>
+            <button
+              onClick={handleCopyFromPrevMonth}
+              disabled={copying}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors disabled:opacity-50"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              {copying ? 'Copiando...' : 'Copiar mes anterior'}
+            </button>
           </div>
 
           {budgetsWithData.length === 0 ? (
