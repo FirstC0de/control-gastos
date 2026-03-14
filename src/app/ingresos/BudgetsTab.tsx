@@ -111,16 +111,16 @@ export default function BudgetsTab() {
 
         {/* ── Formulario ─────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <div className="relative flex items-center justify-end -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
-            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">
+          <div className="flex items-center justify-between gap-2 -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+            <h2 className="text-lg font-bold text-indigo-900 tracking-tight">
               {editingId ? 'Editar presupuesto' : 'Nuevo presupuesto'}
             </h2>
             <button
               onClick={() => setShowCatModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors relative z-10"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors shrink-0"
             >
               <TagIcon />
-              Gestionar categorías
+              <span className="hidden sm:inline">Gestionar categorías</span>
             </button>
           </div>
 
@@ -217,15 +217,15 @@ export default function BudgetsTab() {
 
         {/* ── Lista ──────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200">
-          <div className="px-6 py-4 border-b border-indigo-100 relative flex items-center rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50">
-            <span className="text-xs font-medium text-slate-500 bg-white/70 px-2.5 py-1 rounded-full">
+          <div className="px-6 py-4 border-b border-indigo-100 flex items-center gap-3 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50">
+            <h2 className="flex-1 text-lg font-bold text-indigo-900 tracking-tight">Presupuestos</h2>
+            <span className="hidden sm:inline text-xs font-medium text-slate-500 bg-white/70 px-2.5 py-1 rounded-full shrink-0">
               {budgetsWithData.length} activos · {budgets.filter(b => b.recurring).length} recurrentes
             </span>
-            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">Presupuestos</h2>
             <button
               onClick={handleCopyFromPrevMonth}
               disabled={copying}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors disabled:opacity-50"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors disabled:opacity-50"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />

@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
+import ExportModal from '../ExportModal';
 
 export default function CardSummaryPDF() {
   const { cards, getInstallmentSummary, getMonthlyProjection } = useFinance();
   const [selectedCardId, setSelectedCardId] = useState<string | 'all'>('all');
-  const [generating, setGenerating] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2 });
   const now = new Date();
@@ -19,132 +20,6 @@ export default function CardSummaryPDF() {
   const totalInstallments = installmentItems.reduce((s, e) => s + (e.installmentAmount ?? 0), 0);
   const totalMonth = totalCash + totalInstallments;
 
-  const generatePDF = async () => {
-    setGenerating(true);
-    try {
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-
-      const doc = new jsPDF();
-      const selectedCard = cards.find(c => c.id === selectedCardId);
-      const monthLabel = now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-
-      // Header
-      doc.setFillColor(99, 102, 241);
-      doc.rect(0, 0, 210, 35, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Resumen de Gastos', 14, 15);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${selectedCard ? selectedCard.name : 'Todas las tarjetas'} · ${monthLabel}`, 14, 25);
-
-      // Totales destacados
-      doc.setTextColor(30, 30, 30);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Resumen del mes', 14, 48);
-
-      autoTable(doc, {
-        startY: 52,
-        head: [['Concepto', 'Monto']],
-        body: [
-          ['Gastos de contado', `$${fmt(totalCash)}`],
-          ['Cuotas del mes', `$${fmt(totalInstallments)}`],
-          ['TOTAL A PAGAR', `$${fmt(totalMonth)}`],
-        ],
-        headStyles: { fillColor: [99, 102, 241], textColor: 255 },
-        bodyStyles: { fontSize: 10 },
-        columnStyles: { 1: { halign: 'right' } },
-        didParseCell: (data) => {
-          if (data.row.index === 2) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [238, 242, 255];
-          }
-        },
-      });
-
-      const afterSummary = (doc as any).lastAutoTable.finalY + 10;
-
-      // Gastos de contado
-      if (cashItems.length > 0) {
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Gastos de contado', 14, afterSummary);
-
-        autoTable(doc, {
-          startY: afterSummary + 4,
-          head: [['Descripción', 'Monto total']],
-          body: cashItems.map(e => [e.description, `$${fmt(e.amount)}`]),
-          headStyles: { fillColor: [16, 185, 129], textColor: 255 },
-          bodyStyles: { fontSize: 9 },
-          columnStyles: { 1: { halign: 'right' } },
-        });
-      }
-
-      const afterCash = (doc as any).lastAutoTable.finalY + 10;
-
-      // Gastos en cuotas
-      if (installmentItems.length > 0) {
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Gastos en cuotas', 14, afterCash);
-
-        autoTable(doc, {
-          startY: afterCash + 4,
-          head: [['Descripción', 'Monto total', 'Cuota mensual', 'Cuota']],
-          body: installmentItems.map(e => [
-            e.description,
-            `$${fmt(e.amount)}`,
-            `$${fmt(e.installmentAmount ?? 0)}`,
-            `${e.currentInstallment}/${e.installments}`,
-          ]),
-          headStyles: { fillColor: [245, 158, 11], textColor: 255 },
-          bodyStyles: { fontSize: 9 },
-          columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'center' } },
-        });
-      }
-
-      const afterInstallments = (doc as any).lastAutoTable.finalY + 10;
-
-      // Proyección próximos 6 meses
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Proyección próximos 6 meses', 14, afterInstallments);
-
-      autoTable(doc, {
-        startY: afterInstallments + 4,
-        head: [['Mes', 'Contado', 'Cuotas', 'Total']],
-        body: projection.map(p => [
-          p.label,
-          `$${fmt(p.cash)}`,
-          `$${fmt(p.installments)}`,
-          `$${fmt(p.total)}`,
-        ]),
-        headStyles: { fillColor: [99, 102, 241], textColor: 255 },
-        bodyStyles: { fontSize: 9 },
-        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } },
-      });
-
-      // Footer
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`Generado el ${new Date().toLocaleDateString('es-AR')} · Página ${i} de ${pageCount}`, 14, 290);
-      }
-
-      const filename = `resumen-${selectedCard?.name.replace(/\s/g, '-') || 'gastos'}-${now.getMonth() + 1}-${now.getFullYear()}.pdf`;
-      doc.save(filename);
-    } catch (err) {
-      console.error('Error al generar PDF:', err);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
       <div className="flex items-center justify-between mb-6">
@@ -154,11 +29,18 @@ export default function CardSummaryPDF() {
             {now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <button onClick={generatePDF} disabled={generating}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 transition-colors">
-          {generating ? 'Generando...' : '↓ Exportar PDF'}
+        <button
+          onClick={() => setExportOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Exportar
         </button>
       </div>
+
+      {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
 
       {/* Selector de tarjeta */}
       <div className="mb-6">

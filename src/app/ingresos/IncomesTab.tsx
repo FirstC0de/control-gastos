@@ -34,7 +34,7 @@ const INCOME_DEFAULT: Omit<Income, 'id'> = {
 };
 
 export default function IncomesTab() {
-  const { monthlyIncomes, addIncome, updateIncome, deleteIncome, categories, selectedMonth } = useFinance();
+  const { monthlyIncomes, addIncome, updateIncome, deleteIncome, categories, selectedMonth, savings, addSavingTransaction } = useFinance();
   const incomes = monthlyIncomes;
   const { blue } = useExchangeRate();
   const { toasts, show, remove } = useToast();
@@ -46,7 +46,18 @@ export default function IncomesTab() {
   const [loading, setLoading]                 = useState(false);
   const [showCatModal, setShowCatModal]       = useState(false);
 
-  const reset = () => { setForm({ ...INCOME_DEFAULT, date: defaultDate }); setEditingId(null); };
+  // Aportar al ahorro
+  const [savingEnabled,   setSavingEnabled]   = useState(false);
+  const [savingAccountId, setSavingAccountId] = useState<string>('');
+  const [savingAmount,    setSavingAmount]    = useState('');
+
+  const reset = () => {
+    setForm({ ...INCOME_DEFAULT, date: defaultDate });
+    setEditingId(null);
+    setSavingEnabled(false);
+    setSavingAmount('');
+    setSavingAccountId('');
+  };
 
   const handleSubmit = async () => {
     if (!form.name || !form.amount) { show('Nombre y monto son requeridos', 'error'); return; }
@@ -58,6 +69,19 @@ export default function IncomesTab() {
       } else {
         await addIncome(form);
         show('Ingreso agregado', 'success');
+        // Aportar al ahorro si está habilitado
+        if (savingEnabled && savingAccountId && savingAmount) {
+          const amt = parseFloat(savingAmount.replace(',', '.'));
+          if (!isNaN(amt) && amt > 0) {
+            await addSavingTransaction({
+              savingId: savingAccountId,
+              type: 'deposit',
+              amount: amt,
+              date: form.date,
+              notes: `Aporte desde ingreso: ${form.name}`,
+            });
+          }
+        }
       }
       reset();
     } catch { show('Error al guardar ingreso', 'error'); }
@@ -150,16 +174,16 @@ export default function IncomesTab() {
 
         {/* ── Formulario ─────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <div className="relative flex items-center justify-end -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
-            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">
+          <div className="flex items-center justify-between gap-2 -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+            <h2 className="text-lg font-bold text-indigo-900 tracking-tight">
               {editingId ? 'Editar ingreso' : 'Nuevo ingreso'}
             </h2>
             <button
               onClick={() => setShowCatModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors relative z-10"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors shrink-0"
             >
               <TagIcon />
-              Gestionar categorías
+              <span className="hidden sm:inline">Gestionar categorías</span>
             </button>
           </div>
 
@@ -235,6 +259,7 @@ export default function IncomesTab() {
                 value={form.categoryId ?? null}
                 onChange={id => setForm(p => ({ ...p, categoryId: id }))}
                 categoryType="income"
+                suggestionText={form.name}
                 className={inputClass}
                 showManageButton={false}
               />
@@ -269,6 +294,65 @@ export default function IncomesTab() {
             />
           </div>
 
+          {/* Aportar al ahorro */}
+          {!editingId && savings.length > 0 && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => { setSavingEnabled(v => !v); setSavingAmount(''); setSavingAccountId(''); }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                  savingEnabled
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Aportar al ahorro
+                {savingEnabled && (
+                  <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+              {savingEnabled && (
+                <div className="mt-3 grid grid-cols-2 gap-3 p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl">
+                  <div>
+                    <label className={labelClass}>Cuenta de ahorro</label>
+                    <select
+                      value={savingAccountId}
+                      onChange={e => setSavingAccountId(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Seleccioná...</option>
+                      {savings.filter(s => s.currency === (form.currency ?? 'ARS')).map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Monto a aportar</label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={savingAmount}
+                      onChange={e => setSavingAmount(e.target.value)}
+                      placeholder="0.00"
+                      className={inputClass}
+                    />
+                    {form.amount > 0 && savingAmount && (
+                      <p className="text-[10px] text-emerald-600 mt-1">
+                        {((parseFloat(savingAmount) / form.amount) * 100).toFixed(0)}% del ingreso
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Acciones */}
           <div className="mt-5 flex justify-end gap-2">
             {editingId && (
@@ -291,8 +375,8 @@ export default function IncomesTab() {
 
         {/* ── Lista ──────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200">
-          <div className="px-6 py-4 border-b border-indigo-100 relative flex items-center rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50">
-            <div className="w-8 shrink-0">
+          <div className="px-6 py-4 border-b border-indigo-100 flex items-center gap-3 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50">
+            <div className="w-6 shrink-0">
               {selectMode && (
                 <div
                   onClick={toggleSelectAll}
@@ -307,10 +391,10 @@ export default function IncomesTab() {
                 </div>
               )}
             </div>
-            <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">Ingresos</h2>
+            <h2 className="flex-1 text-lg font-bold text-indigo-900 tracking-tight">Ingresos</h2>
             <button
               onClick={() => selectMode ? clearSelection() : setSelectMode(true)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                 selectMode ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >

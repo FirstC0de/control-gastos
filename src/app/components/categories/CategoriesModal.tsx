@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useFinance } from '../../context/FinanceContext';
-import { Category, CategoryType } from '../../lib/types';
+import { Category } from '../../lib/types';
 import CategoryForm from './CategoryForm';
 import ConfirmModal from '../ui/ConfirmModal';
 import { ToastContainer, useToast } from '../ui/Toast';
@@ -11,50 +11,48 @@ import { ToastContainer, useToast } from '../ui/Toast';
 interface CategoriesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultType?: CategoryType;
+  defaultType?: 'expense' | 'income';
 }
 
+type Tab = 'expense' | 'income';
 type View = 'list' | 'create' | 'edit';
 
-const TYPE_LABELS: Record<string, string> = {
-  expense: 'Gasto',
-  income:  'Ingreso',
-  both:    'Ambos',
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  expense: 'bg-red-100 text-red-700',
-  income:  'bg-green-100 text-green-700',
-  both:    'bg-blue-100 text-blue-700',
-};
-
 export default function CategoriesModal({ isOpen, onClose, defaultType = 'expense' }: CategoriesModalProps) {
-  const { categories, addCategory, updateCategory, deleteCategory } = useFinance();
+  const {
+    getAllCategories,
+    addCategory, updateCategory, deleteCategory,
+    hideCategory, restoreCategory,
+  } = useFinance();
   const { toasts, show, remove } = useToast();
 
+  const [tab, setTab]                     = useState<Tab>(defaultType === 'income' ? 'income' : 'expense');
   const [view, setView]                   = useState<View>('list');
   const [editingId, setEditingId]         = useState<string | null>(null);
   const [deletingId, setDeletingId]       = useState<string | null>(null);
-  const [loading, setLoading]             = useState(false);
   const [search, setSearch]               = useState('');
-  const [filterType, setFilterType]       = useState<CategoryType | 'all'>('all');
+  const [loading, setLoading]             = useState(false);
+  const [showHidden, setShowHidden]       = useState(false);
 
-  const editingCategory = categories.find(c => c.id === editingId);
-  const deletingCategory = categories.find(c => c.id === deletingId);
+  const all = getAllCategories();
 
-  // Filtrado con búsqueda + tipo
-  const filtered = useMemo(() => {
-    return categories.filter(c => {
-      const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
-      const matchType   = filterType === 'all' || c.type === filterType || c.type === 'both';
-      return matchSearch && matchType;
-    });
-  }, [categories, search, filterType]);
+  const displayed = useMemo(() => {
+    return all
+      .filter(c => {
+        const matchTab = c.type === tab || c.type === 'both';
+        const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
+        const matchActive = showHidden ? true : c.isActive !== false;
+        return matchTab && matchSearch && matchActive;
+      })
+      .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name));
+  }, [all, tab, search, showHidden]);
+
+  const editingCategory = all.find(c => c.id === editingId);
+  const deletingCategory = all.find(c => c.id === deletingId);
 
   const handleCreate = async (data: Omit<Category, 'id'>) => {
     setLoading(true);
     try {
-      await addCategory(data);
+      await addCategory({ ...data, type: tab, isActive: true });
       show(`Categoría "${data.name}" creada`, 'success');
       setView('list');
     } catch {
@@ -93,6 +91,30 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     }
   };
 
+  const handleHide = async (cat: Category) => {
+    setLoading(true);
+    try {
+      await hideCategory(cat.id);
+      show(`"${cat.name}" ocultada`, 'warning');
+    } catch {
+      show('Error al ocultar', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async (cat: Category) => {
+    setLoading(true);
+    try {
+      await restoreCategory(cat.id);
+      show(`"${cat.name}" restaurada`, 'success');
+    } catch {
+      show('Error al restaurar', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const startEdit = (cat: Category) => {
     setEditingId(cat.id);
     setView('edit');
@@ -106,6 +128,8 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
   };
 
   if (!isOpen || typeof document === 'undefined') return null;
+
+  const hiddenCount = all.filter(c => (c.type === tab || c.type === 'both') && c.isActive === false).length;
 
   return createPortal(
     <>
@@ -130,80 +154,151 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
                                     'Editar categoría'}
               </h2>
             </div>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 text-xl transition-colors"
-            >
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 text-xl transition-colors">
               ✕
             </button>
           </div>
 
+          {/* Tabs — solo en lista */}
+          {view === 'list' && (
+            <div className="flex border-b px-6">
+              {(['expense', 'income'] as Tab[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => { setTab(t); setSearch(''); }}
+                  className={`py-3 px-4 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                    tab === t
+                      ? 'border-indigo-600 text-indigo-700'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t === 'expense' ? '💸 Gastos' : '💰 Ingresos'}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-6">
             {view === 'list' && (
-              <div className="space-y-4">
-                {/* Búsqueda y filtros */}
+              <div className="space-y-3">
+                {/* Search + toggle hidden */}
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Buscar categoría..."
+                    placeholder="Buscar..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
-                  <select
-                    value={filterType}
-                    onChange={e => setFilterType(e.target.value as CategoryType | 'all')}
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="all">Todos</option>
-                    <option value="expense">Gastos</option>
-                    <option value="income">Ingresos</option>
-                    <option value="both">Ambos</option>
-                  </select>
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowHidden(v => !v)}
+                      className={`px-3 py-2 text-xs rounded-lg border transition-colors ${
+                        showHidden
+                          ? 'border-amber-400 bg-amber-50 text-amber-700'
+                          : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {showHidden ? `Ocultar inactivas` : `+${hiddenCount} ocultas`}
+                    </button>
+                  )}
                 </div>
 
-                {/* Lista */}
-                {filtered.length === 0 ? (
+                {/* List */}
+                {displayed.length === 0 ? (
                   <div className="text-center py-10 text-gray-400">
                     <p className="text-4xl mb-2">🏷️</p>
-                    <p className="text-sm">
-                      {search ? 'No se encontraron categorías' : 'No hay categorías todavía'}
-                    </p>
+                    <p className="text-sm">{search ? 'Sin resultados' : 'Sin categorías todavía'}</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {filtered.map(cat => (
-                      <div
-                        key={cat.id}
-                        className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-all"
-                        style={{ borderLeftColor: cat.color, borderLeftWidth: 4 }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{cat.name}</p>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[cat.type]}`}>
-                              {TYPE_LABELS[cat.type]}
+                  <div className="space-y-1.5">
+                    {displayed.map(cat => {
+                      const isHidden = cat.isActive === false;
+                      return (
+                        <div
+                          key={cat.id}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${
+                            isHidden
+                              ? 'border-gray-100 bg-gray-50 opacity-60'
+                              : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                          }`}
+                          style={{ borderLeftColor: isHidden ? '#d1d5db' : cat.color, borderLeftWidth: 4 }}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-lg leading-none w-6 text-center shrink-0">
+                              {cat.icon || '🏷️'}
                             </span>
+                            <div className="min-w-0">
+                              <p className={`text-sm font-medium truncate ${isHidden ? 'text-gray-400' : 'text-gray-900'}`}>
+                                {cat.name}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {cat.isPredefined && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                                    predefinida
+                                  </span>
+                                )}
+                                {isHidden && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-600">
+                                    oculta
+                                  </span>
+                                )}
+                                {cat.type === 'both' && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">
+                                    ambos
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                            {isHidden ? (
+                              /* Restore button */
+                              <button
+                                onClick={() => handleRestore(cat)}
+                                disabled={loading}
+                                className="px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                              >
+                                Restaurar
+                              </button>
+                            ) : (
+                              <>
+                                {/* Edit — always available */}
+                                <button
+                                  onClick={() => startEdit(cat)}
+                                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="Editar"
+                                >
+                                  ✏️
+                                </button>
+                                {/* Hide (predefined) or Delete (custom) */}
+                                {cat.isPredefined ? (
+                                  <button
+                                    onClick={() => handleHide(cat)}
+                                    disabled={loading}
+                                    className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors text-sm"
+                                    title="Ocultar"
+                                  >
+                                    👁
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeletingId(cat.id)}
+                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Eliminar"
+                                  >
+                                    🗑️
+                                  </button>
+                                )}
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => startEdit(cat)}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => setDeletingId(cat.id)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -214,16 +309,24 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
                 onSubmit={handleCreate}
                 onCancel={() => setView('list')}
                 loading={loading}
+                initial={{ name: '', color: '#3B82F6', type: tab, icon: '', keywords: [] }}
               />
             )}
 
             {view === 'edit' && editingCategory && (
               <CategoryForm
                 initial={{
-                  name:  editingCategory.name,
-                  color: editingCategory.color,
-                  type:  editingCategory.type,
+                  name:        editingCategory.name,
+                  color:       editingCategory.color,
+                  type:        editingCategory.type,
+                  icon:        editingCategory.icon ?? '',
+                  keywords:    editingCategory.keywords ?? [],
+                  isPredefined: editingCategory.isPredefined,
+                  isActive:    editingCategory.isActive,
+                  order:       editingCategory.order,
+                  description: editingCategory.description,
                 }}
+                isPredefined={editingCategory.isPredefined}
                 onSubmit={handleUpdate}
                 onCancel={() => { setView('list'); setEditingId(null); }}
                 loading={loading}
@@ -231,7 +334,7 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
             )}
           </div>
 
-          {/* Footer — solo en vista lista */}
+          {/* Footer */}
           {view === 'list' && (
             <div className="px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
               <button
@@ -245,7 +348,6 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
         </div>
       </div>
 
-      {/* Modal de confirmación de eliminación */}
       <ConfirmModal
         isOpen={!!deletingId}
         title="Eliminar categoría"

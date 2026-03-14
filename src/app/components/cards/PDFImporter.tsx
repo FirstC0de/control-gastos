@@ -174,7 +174,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
         <div className="bg-white rounded-2xl border border-slate-200">
 
             {/* Header */}
-            <div className="relative flex items-center justify-end -mx-0 px-6 py-4 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+            <div className="relative flex items-center justify-end mx-0 px-6 py-4 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
                 <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">
                     Importar resumen de tarjeta
                 </h2>
@@ -339,7 +339,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                         {/* Tabla */}
                         <div className="border border-slate-200 rounded-xl overflow-hidden max-h-110 overflow-y-auto">
                             <table className="w-full text-sm">
-                                <thead className="bg-gradient-to-r from-indigo-50 to-slate-50 sticky top-0 z-10">
+                                <thead className="bg-linear-to-r from-indigo-50 to-slate-50 sticky top-0 z-10">
                                     <tr>
                                         <th className="w-10 px-3 py-3" />
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">Fecha</th>

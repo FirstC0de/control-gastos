@@ -79,11 +79,11 @@ export default function ExpenseForm() {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
-      <div className="relative flex items-center justify-end -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
-        <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">Nuevo gasto</h2>
-        <div className="flex items-center gap-2 relative z-10">
+      <div className="flex items-center justify-between gap-2 -mx-6 -mt-6 px-6 py-4 mb-6 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+        <h2 className="text-lg font-bold text-indigo-900 tracking-tight">Nuevo gasto</h2>
+        <div className="flex items-center gap-2 shrink-0">
           {formData.installments > 1 && formData.amount > 0 && (
-            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+            <span className="hidden sm:inline text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
               {formData.installments} cuotas de {formData.currency === 'USD' ? 'U$D' : '$'}{installmentAmount.toFixed(2)}
             </span>
           )}
@@ -93,7 +93,7 @@ export default function ExpenseForm() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white/70 hover:bg-white rounded-xl transition-colors"
           >
             <TagIcon />
-            Gestionar categorías
+            <span className="hidden sm:inline">Gestionar categorías</span>
           </button>
         </div>
       </div>
@@ -165,7 +165,9 @@ export default function ExpenseForm() {
           <label className={labelClass}>Categoría</label>
           <CategorySelector value={formData.categoryId}
             onChange={id => setFormData({ ...formData, categoryId: id })}
-            categoryType="expense" className={inputClass} />
+            categoryType="expense"
+            suggestionText={formData.description}
+            className={inputClass} />
         </div>
 
         {/* Recurrente */}
