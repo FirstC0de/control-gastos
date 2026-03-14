@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { ExchangeRateProvider } from '../context/ExchangeRateContext';
+import { FinanceProvider } from '../context/FinanceContext';
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
@@ -30,9 +32,13 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <StatusBar style="auto" />
-      <RootLayoutNav />
-    </AuthProvider>
+    <ExchangeRateProvider>
+      <AuthProvider>
+        <FinanceProvider>
+          <StatusBar style="auto" />
+          <RootLayoutNav />
+        </FinanceProvider>
+      </AuthProvider>
+    </ExchangeRateProvider>
   );
 }

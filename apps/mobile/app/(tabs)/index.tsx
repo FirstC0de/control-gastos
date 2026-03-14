@@ -1,27 +1,77 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useFinance } from '../../context/FinanceContext';
+import { useExchangeRate } from '../../context/ExchangeRateContext';
 import { Colors } from '../../constants/Colors';
+
+const fmt = (n: number) =>
+  n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
+  const { getTotalIncome, getTotalExpenses, getBalance, monthlyExpenses, selectedMonth, setSelectedMonth } = useFinance();
+  const { blue } = useExchangeRate();
+
+  const balance = getBalance();
+  const totalIncome = getTotalIncome();
+  const totalExpenses = getTotalExpenses();
+  const isPositive = balance >= 0;
+
+  const prevMonth = () => {
+    const { year, month } = selectedMonth;
+    if (month === 0) setSelectedMonth({ year: year - 1, month: 11 });
+    else setSelectedMonth({ year, month: month - 1 });
+  };
+
+  const nextMonth = () => {
+    const { year, month } = selectedMonth;
+    if (month === 11) setSelectedMonth({ year: year + 1, month: 0 });
+    else setSelectedMonth({ year, month: month + 1 });
+  };
+
+  const monthLabel = new Date(selectedMonth.year, selectedMonth.month, 1)
+    .toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Hola 👋</Text>
-        <Text style={styles.email}>{user?.email}</Text>
+      {/* Navegador de mes */}
+      <View style={styles.monthNav}>
+        <TouchableOpacity onPress={prevMonth} style={styles.monthBtn}>
+          <Text style={styles.monthBtnText}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.monthLabel}>{monthLabel}</Text>
+        <TouchableOpacity onPress={nextMonth} style={styles.monthBtn}>
+          <Text style={styles.monthBtnText}>›</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Resumen de balance — placeholder hasta conectar FinanceContext */}
-      <View style={styles.balanceCard}>
+      {/* Balance card */}
+      <View style={[styles.balanceCard, { backgroundColor: isPositive ? Colors.primaryDark : '#7f1d1d' }]}>
         <Text style={styles.balanceLabel}>Balance del mes</Text>
-        <Text style={styles.balanceAmount}>$ —</Text>
+        <Text style={styles.balanceAmount}>{fmt(balance)}</Text>
+        {blue && (
+          <Text style={styles.blueRate}>USD blue: ${blue.toLocaleString('es-AR')}</Text>
+        )}
       </View>
 
+      {/* Ingresos / Gastos */}
       <View style={styles.row}>
-        <SummaryTile label="Ingresos" value="$ —" color={Colors.secondary} />
-        <SummaryTile label="Gastos" value="$ —" color={Colors.danger} />
+        <SummaryTile label="Ingresos" value={fmt(totalIncome)} color={Colors.secondary} />
+        <SummaryTile label="Gastos" value={fmt(totalExpenses)} color={Colors.danger} />
       </View>
+
+      {/* Últimos gastos */}
+      {monthlyExpenses.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Últimos gastos</Text>
+          {monthlyExpenses.slice(0, 5).map(e => (
+            <View key={e.id} style={styles.expenseRow}>
+              <Text style={styles.expenseDesc} numberOfLines={1}>{e.description}</Text>
+              <Text style={styles.expenseAmount}>{fmt(e.amount)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
         <Text style={styles.logoutText}>Cerrar sesión</Text>
@@ -40,72 +90,36 @@ function SummaryTile({ label, value, color }: { label: string; value: string; co
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
+  container: { flex: 1, backgroundColor: Colors.background },
+  content: { padding: 16, gap: 12 },
+  monthNav: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  content: {
-    padding: 16,
-    gap: 12,
-  },
-  header: {
-    marginBottom: 8,
-  },
-  greeting: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  email: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
+  monthBtn: { padding: 8 },
+  monthBtnText: { fontSize: 22, color: Colors.primary, fontWeight: '600' },
+  monthLabel: { fontSize: 15, fontWeight: '600', color: Colors.text, textTransform: 'capitalize' },
   balanceCard: {
-    backgroundColor: Colors.primaryDark,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
+    borderRadius: 12, padding: 20, alignItems: 'center',
   },
-  balanceLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  balanceAmount: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: '700',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  balanceLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 4 },
+  balanceAmount: { color: '#fff', fontSize: 32, fontWeight: '700' },
+  blueRate: { color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 6 },
+  row: { flexDirection: 'row', gap: 12 },
   tile: {
-    flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: 10,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    flex: 1, backgroundColor: Colors.card, borderRadius: 10, padding: 16,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  tileLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 4,
+  tileLabel: { fontSize: 12, color: Colors.textSecondary, marginBottom: 4 },
+  tileValue: { fontSize: 16, fontWeight: '700' },
+  section: { backgroundColor: Colors.card, borderRadius: 10, padding: 16, elevation: 2 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 10 },
+  expenseRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  tileValue: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  logoutBtn: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  logoutText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-  },
+  expenseDesc: { flex: 1, fontSize: 14, color: Colors.text, marginRight: 8 },
+  expenseAmount: { fontSize: 14, fontWeight: '600', color: Colors.danger },
+  logoutBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
+  logoutText: { color: Colors.textMuted, fontSize: 14 },
 });
