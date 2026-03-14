@@ -62,13 +62,116 @@ export type BudgetStatus = {
 
 export type CategoryType = 'expense' | 'income' | 'both';
 
+// ── AHORROS ───────────────────────────────────────────────
+export type SavingType = 'account' | 'cash' | 'wallet' | 'goal';
+
+export type Saving = {
+  id: string;
+  name: string;
+  type: SavingType;
+  institution?: string;
+  currency: Currency;
+  balance: number;
+  color: string;
+  notes?: string;
+  createdAt: string;
+  // Solo para type === 'goal'
+  goalAmount?: number;
+  goalDate?: string;
+  monthlyContribution?: number; // aporte mensual planeado (para estimar fecha)
+};
+
+export type SavingTransactionType = 'deposit' | 'withdrawal' | 'adjustment';
+
+export type SavingTransaction = {
+  id: string;
+  savingId: string;
+  type: SavingTransactionType;
+  amount: number;
+  date: string;
+  notes?: string;
+  sourceIncomeId?: string; // si viene de un ingreso automático
+};
+
+export type SavingsSummary = {
+  totalARS: number;
+  totalUSD: number;
+  totalConverted: number; // todo en ARS al tipo de cambio blue
+  byType: Partial<Record<SavingType, number>>; // valor en ARS por tipo
+};
+
+// ── PLAZOS FIJOS ──────────────────────────────────────────
+export type FixedTerm = {
+  id: string;
+  institution: string;
+  principal: number;
+  currency: Currency;
+  startDate: string;    // "YYYY-MM-DD"
+  endDate: string;      // "YYYY-MM-DD"
+  rate: number;         // TNA en %
+  renewOnExpiry: boolean;
+  notes?: string;
+  createdAt: string;
+};
+
+export type FixedTermStatus = {
+  fixedTerm: FixedTerm;
+  daysElapsed: number;
+  daysTotal: number;
+  daysRemaining: number;
+  accruedInterest: number;
+  projectedInterest: number;
+  currentValue: number;
+  isExpired: boolean;
+  isExpiringSoon: boolean; // ≤ 7 días
+};
+
+// ── INVERSIONES ───────────────────────────────────────────
+export type InvestmentType = 'stock' | 'bond' | 'cedear' | 'crypto' | 'other';
+
+export type Investment = {
+  id: string;
+  name: string;
+  ticker?: string;
+  type: InvestmentType;
+  currency: Currency;
+  quantity: number;
+  purchasePrice: number;
+  currentPrice: number;
+  purchaseDate: string;
+  notes?: string;
+  createdAt: string;
+};
+
+export type InvestmentStatus = {
+  investment: Investment;
+  purchaseValue: number;
+  currentValue: number;
+  unrealizedGain: number;
+  unrealizedGainPct: number;
+};
+
+export type PortfolioSummary = {
+  savingsTotalConverted: number;
+  fixedTermsTotalConverted: number;
+  fixedTermsProjectedInterest: number;
+  investmentsTotalConverted: number;
+  investmentsTotalGain: number;
+  grandTotal: number;
+};
+
 export type Category = {
   id: string;
   name: string;
   color: string;
   type: CategoryType;
   icon?: string;
-  
+  // Extended fields (optional for backward compat)
+  isPredefined?: boolean;
+  isActive?: boolean;      // false = hidden (predefined can't be deleted, only hidden)
+  keywords?: string[];
+  order?: number;
+  description?: string;
 };
 
 export type FinanceContextType = {
@@ -83,7 +186,11 @@ export type FinanceContextType = {
   addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  hideCategory: (id: string) => Promise<void>;
+  restoreCategory: (id: string) => Promise<void>;
   getCategoriesByType: (type: CategoryType) => Category[];
+  getAllCategories: () => Category[]; // includes hidden, for admin UI
+  suggestCategory: (description: string, type: CategoryType) => string | null;
 
   // Gastos
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
@@ -129,4 +236,33 @@ export type FinanceContextType = {
     label: string; year: number; month: number;
     total: number; cash: number; installments: number;
   }[];
+
+  // Ahorros
+  savings: Saving[];
+  addSaving: (data: Omit<Saving, 'id'>) => Promise<void>;
+  updateSaving: (id: string, data: Partial<Saving>) => Promise<void>;
+  deleteSaving: (id: string) => Promise<void>;
+  getSavingsSummary: () => SavingsSummary;
+
+  // Transacciones de ahorro
+  savingTransactions: SavingTransaction[];
+  addSavingTransaction: (data: Omit<SavingTransaction, 'id'>) => Promise<void>;
+  deleteSavingTransaction: (id: string) => Promise<void>;
+
+  // Plazos fijos
+  fixedTerms: FixedTerm[];
+  addFixedTerm: (data: Omit<FixedTerm, 'id'>) => Promise<void>;
+  updateFixedTerm: (id: string, data: Partial<FixedTerm>) => Promise<void>;
+  deleteFixedTerm: (id: string) => Promise<void>;
+  getFixedTermStatus: () => FixedTermStatus[];
+
+  // Inversiones
+  investments: Investment[];
+  addInvestment: (data: Omit<Investment, 'id'>) => Promise<void>;
+  updateInvestment: (id: string, data: Partial<Investment>) => Promise<void>;
+  deleteInvestment: (id: string) => Promise<void>;
+  getInvestmentStatus: () => InvestmentStatus[];
+
+  // Portfolio consolidado
+  getPortfolioSummary: () => PortfolioSummary;
 };

@@ -203,7 +203,7 @@ export default function MetricasPage() {
 
           {/* Evolución mensual */}
           <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm">
-            <div className="relative flex items-center justify-end px-6 py-4 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+            <div className="relative flex items-center justify-end px-6 py-4 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
               <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">
                 Evolución mensual
               </h2>
@@ -235,7 +235,7 @@ export default function MetricasPage() {
 
           {/* Donut categorías */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-            <div className="relative flex items-center px-6 py-4 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+            <div className="relative flex items-center px-6 py-4 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
               <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">
                 Por categoría
               </h2>
@@ -285,7 +285,7 @@ export default function MetricasPage() {
 
         {/* Últimas transacciones */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <div className="relative flex items-center px-6 py-4 rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
+          <div className="relative flex items-center px-6 py-4 rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50 border-b border-indigo-100">
             <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-indigo-900 tracking-tight whitespace-nowrap">
               Últimas transacciones
             </h2>
@@ -351,7 +351,7 @@ export default function MetricasPage() {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="h-[200px] flex flex-col items-center justify-center text-slate-400 gap-2">
+    <div className="h-50 flex flex-col items-center justify-center text-slate-400 gap-2">
       <svg className="w-10 h-10 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
       </svg>

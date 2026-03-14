@@ -194,7 +194,7 @@ export default function ExpenseList() {
       <div className="bg-white rounded-2xl border border-slate-200">
 
         {/* ── Header ──────────────────────────────────────── */}
-        <div className="px-6 py-4 border-b border-indigo-100 relative flex items-center rounded-t-2xl bg-gradient-to-r from-indigo-50 to-slate-50">
+        <div className="px-6 py-4 border-b border-indigo-100 relative flex items-center rounded-t-2xl bg-linear-to-r from-indigo-50 to-slate-50">
           <div className="w-8 shrink-0">
             {selectMode && (
               <div

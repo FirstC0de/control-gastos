@@ -8,7 +8,9 @@ export type NotificationType =
   | 'budget_warning'
   | 'card_due'
   | 'card_closing'
-  | 'no_income';
+  | 'no_income'
+  | 'fixed_term_expiring'
+  | 'fixed_term_expired';
 
 export type NotificationSeverity = 'error' | 'warning' | 'info';
 
@@ -53,7 +55,7 @@ function saveSet(key: string, set: Set<string>) {
 }
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { getBudgetStatus, cards, monthlyIncomes, selectedMonth } = useFinance();
+  const { getBudgetStatus, cards, monthlyIncomes, selectedMonth, fixedTerms } = useFinance();
 
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
@@ -132,8 +134,35 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       });
     }
 
+    // Fixed term expiry notifications
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const ft of fixedTerms) {
+      const end = new Date(ft.endDate + 'T12:00:00');
+      const daysRemaining = Math.round((end.getTime() - today.getTime()) / 86400000);
+      if (daysRemaining < 0 && !ft.renewOnExpiry) {
+        result.push({
+          id: `fixed_term_expired_${ft.id}`,
+          type: 'fixed_term_expired',
+          title: 'Plazo fijo vencido',
+          message: `${ft.institution} · $${ft.principal.toLocaleString('es-AR', { maximumFractionDigits: 0 })} venció hace ${Math.abs(daysRemaining)} día${Math.abs(daysRemaining) !== 1 ? 's' : ''}`,
+          severity: 'error',
+          href: '/inversiones?tab=plazos',
+        });
+      } else if (daysRemaining >= 0 && daysRemaining <= 7) {
+        result.push({
+          id: `fixed_term_expiring_${ft.id}`,
+          type: 'fixed_term_expiring',
+          title: 'Plazo fijo próximo a vencer',
+          message: `${ft.institution} · $${ft.principal.toLocaleString('es-AR', { maximumFractionDigits: 0 })} vence ${daysRemaining === 0 ? 'hoy' : `en ${daysRemaining} día${daysRemaining !== 1 ? 's' : ''}`}`,
+          severity: 'warning',
+          href: '/inversiones?tab=plazos',
+        });
+      }
+    }
+
     return result;
-  }, [getBudgetStatus, cards, monthlyIncomes, selectedMonth]);
+  }, [getBudgetStatus, cards, monthlyIncomes, selectedMonth, fixedTerms]);
 
   const notifications = useMemo(
     () => allNotifications.filter(n => !dismissedIds.has(n.id) && !disabledTypes.has(n.type)),

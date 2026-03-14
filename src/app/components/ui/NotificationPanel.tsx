@@ -5,11 +5,13 @@ import { useEffect, useRef } from 'react';
 import { useNotifications, type AppNotification, type NotificationType } from '../../context/NotificationContext';
 
 const TYPE_LABELS: Record<NotificationType, string> = {
-  budget_exceeded: 'Presupuesto excedido',
-  budget_warning:  'Alerta de presupuesto',
-  card_due:        'Vencimiento de tarjeta',
-  card_closing:    'Cierre de tarjeta',
-  no_income:       'Sin ingresos',
+  budget_exceeded:     'Presupuesto excedido',
+  budget_warning:      'Alerta de presupuesto',
+  card_due:            'Vencimiento de tarjeta',
+  card_closing:        'Cierre de tarjeta',
+  no_income:           'Sin ingresos',
+  fixed_term_expiring: 'Plazo fijo por vencer',
+  fixed_term_expired:  'Plazo fijo vencido',
 };
 
 const SEVERITY_STYLES = {

@@ -6,6 +6,8 @@ import ExpenseForm from '../components/ExpenseForm';
 import ExpenseList from '../components/ExpenseList';
 import SummaryCard from '../components/SummaryCard';
 import CardSummaryPDF from '../components/cards/CardSummaryPDF';
+import SavingsDashboardWidget from '../components/savings/SavingsDashboardWidget';
+
 export default function DashboardPage() {
   return (
     <AppShell>
@@ -17,6 +19,7 @@ export default function DashboardPage() {
         </div>
         <div className="xl:col-span-1 space-y-6 min-w-0">
           <SummaryCard />
+          <SavingsDashboardWidget />
           <CardSummaryPDF />
         </div>
       </div>

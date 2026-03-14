@@ -63,7 +63,7 @@ export function ToastContainer({ toasts, onRemove }: {
   onRemove: (id: number) => void;
 }) {
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-80">
+    <div className="fixed bottom-4 right-4 z-100 flex flex-col gap-2 w-80">
       {toasts.map(t => (
         <Toast key={t.id} message={t.message} type={t.type} onClose={() => onRemove(t.id)} />
       ))}

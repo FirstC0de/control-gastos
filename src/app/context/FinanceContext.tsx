@@ -19,14 +19,32 @@ import {
   deleteBudget as apiDeleteBudget,
   fetchCategories,
   createCategory as apiCreateCategory,
-  updateCategory as apiUpdateCategory, // ← nuevo
+  updateCategory as apiUpdateCategory,
   deleteCategory as apiDeleteCategory,
+  hideCategory as apiHideCategory,
+  restoreCategory as apiRestoreCategory,
+  checkAndSeedCategories,
   fetchMonthlyIncome,
   updateMonthlyIncome as apiUpdateMonthlyIncome,
   fetchCards,
   createCard as apiCreateCard,
   updateCard as apiUpdateCard,
   deleteCard as apiDeleteCard,
+  fetchSavings,
+  createSaving as apiCreateSaving,
+  updateSaving as apiUpdateSaving,
+  deleteSaving as apiDeleteSaving,
+  fetchSavingTransactions,
+  createSavingTransaction as apiCreateSavingTransaction,
+  deleteSavingTransaction as apiDeleteSavingTransaction,
+  fetchFixedTerms,
+  createFixedTerm as apiCreateFixedTerm,
+  updateFixedTerm as apiUpdateFixedTerm,
+  deleteFixedTerm as apiDeleteFixedTerm,
+  fetchInvestments,
+  createInvestment as apiCreateInvestment,
+  updateInvestment as apiUpdateInvestment,
+  deleteInvestment as apiDeleteInvestment,
 } from '../lib/api';
 import {
   Expense,
@@ -37,8 +55,17 @@ import {
   CategoryType,
   FinanceContextType,
   Card,
-  Currency
+  Currency,
+  Saving,
+  SavingsSummary,
+  SavingTransaction,
+  FixedTerm,
+  FixedTermStatus,
+  Investment,
+  InvestmentStatus,
+  PortfolioSummary,
 } from '../lib/types';
+import { suggestCategory as suggestCategoryFn } from '../lib/defaultCategories';
 
 
 
@@ -51,6 +78,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [monthlyIncome, setMonthlyIncome] = useState<number>(0);
   const [cards, setCards] = useState<Card[]>([]);
+  const [savings, setSavings] = useState<Saving[]>([]);
+  const [savingTransactions, setSavingTransactions] = useState<SavingTransaction[]>([]);
+  const [fixedTerms, setFixedTerms] = useState<FixedTerm[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const { blue } = useExchangeRate();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState({
@@ -66,9 +97,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         }).catch(console.error);
         fetchIncomes().then(setIncomes).catch(console.error);
         fetchBudgets().then(setBudgets).catch(console.error);
-        fetchCategories().then(setCategories).catch(console.error);
+        // Fetch categories, then seed predefined ones if first time
+        fetchCategories().then(async (cats) => {
+          setCategories(cats);
+          const seeded = await checkAndSeedCategories().catch(() => false);
+          if (seeded) fetchCategories().then(setCategories).catch(console.error);
+        }).catch(console.error);
         fetchMonthlyIncome().then(setMonthlyIncome).catch(console.error);
         fetchCards().then(setCards).catch(console.error);
+        fetchSavings().then(setSavings).catch(console.error);
+        fetchSavingTransactions().then(setSavingTransactions).catch(console.error);
+        fetchFixedTerms().then(setFixedTerms).catch(console.error);
+        fetchInvestments().then(setInvestments).catch(console.error);
       } else {
         setExpenses([]);
         setIncomes([]);
@@ -76,6 +116,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         setCategories([]);
         setMonthlyIncome(0);
         setCards([]);
+        setSavings([]);
+        setSavingTransactions([]);
+        setFixedTerms([]);
+        setInvestments([]);
       }
 
 
@@ -245,9 +289,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setCategories(prev => [...prev, newCat]);
   };
 
-  // Y updateCategory que antes no persistía:
   const updateCategory = async (id: string, updates: Partial<Category>) => {
-    const updated = await apiUpdateCategory(id, updates); // ← ahora sí persiste
+    const updated = await apiUpdateCategory(id, updates);
     setCategories(prev => prev.map(x => x.id === id ? updated : x));
   };
 
@@ -255,6 +298,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     await apiDeleteCategory(id);
     setCategories(prev => prev.filter(x => x.id !== id));
   };
+
+  const hideCategory = async (id: string) => {
+    await apiHideCategory(id);
+    setCategories(prev => prev.map(x => x.id === id ? { ...x, isActive: false } : x));
+  };
+
+  const restoreCategory = async (id: string) => {
+    await apiRestoreCategory(id);
+    setCategories(prev => prev.map(x => x.id === id ? { ...x, isActive: true } : x));
+  };
+
+  const getAllCategories = () => categories;
+
+  const suggestCategory = (description: string, type: CategoryType): string | null =>
+    suggestCategoryFn(description, type, categories);
 
   // --- INGRESO MENSUAL ---
   const setMonthly = async (amt: number) => {
@@ -264,7 +322,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   // --- MÉTODOS ÚTILES ---
   const getCategoriesByType = (type: CategoryType) =>
-    categories.filter(c => c.type === 'both' || c.type === type);
+    categories.filter(c =>
+      c.isActive !== false && (c.type === 'both' || c.type === type)
+    ).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
   const getRemainingBudget = (categoryId: string) => {
     const budget = budgets.find(b => b.categoryId === categoryId);
@@ -381,6 +441,160 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     return toCreate.length;
   };
 
+  // --- AHORROS ---
+  const addSaving = async (data: Omit<Saving, 'id'>) => {
+    const newSaving = await apiCreateSaving(data);
+    setSavings(prev => [...prev, newSaving]);
+    toast.success('Ahorro agregado');
+  };
+
+  const updateSaving = async (id: string, data: Partial<Saving>) => {
+    const updated = await apiUpdateSaving(id, data);
+    setSavings(prev => prev.map(x => x.id === id ? updated : x));
+    toast.success('Ahorro actualizado');
+  };
+
+  const deleteSaving = async (id: string) => {
+    await apiDeleteSaving(id);
+    setSavings(prev => prev.filter(x => x.id !== id));
+    toast.success('Ahorro eliminado');
+  };
+
+  // --- TRANSACCIONES DE AHORRO ---
+  const addSavingTransaction = async (data: Omit<SavingTransaction, 'id'>) => {
+    const { transaction, newBalance } = await apiCreateSavingTransaction(data);
+    setSavingTransactions(prev => [transaction, ...prev]);
+    setSavings(prev => prev.map(s => s.id === data.savingId ? { ...s, balance: newBalance } : s));
+    const label = data.type === 'withdrawal' ? 'Retiro registrado' : 'Depósito registrado';
+    toast.success(label);
+  };
+
+  const deleteSavingTransaction = async (id: string) => {
+    const t = savingTransactions.find(tx => tx.id === id);
+    if (!t) return;
+    const newBalance = await apiDeleteSavingTransaction(id, t.savingId, t.amount, t.type);
+    setSavingTransactions(prev => prev.filter(tx => tx.id !== id));
+    setSavings(prev => prev.map(s => s.id === t.savingId ? { ...s, balance: newBalance } : s));
+    toast.success('Transacción eliminada');
+  };
+
+  const getSavingsSummary = (): SavingsSummary => {
+    const totalARS = savings.filter(s => s.currency === 'ARS').reduce((sum, s) => sum + s.balance, 0);
+    const totalUSD = savings.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.balance, 0);
+    const totalConverted = totalARS + totalUSD * (blue || 1);
+    const byType = savings.reduce((acc, s) => {
+      const val = s.currency === 'USD' ? s.balance * (blue || 1) : s.balance;
+      acc[s.type] = (acc[s.type] ?? 0) + val;
+      return acc;
+    }, {} as Partial<Record<string, number>>);
+    return { totalARS, totalUSD, totalConverted, byType };
+  };
+
+  // --- PLAZOS FIJOS ---
+  const addFixedTerm = async (data: Omit<FixedTerm, 'id'>) => {
+    const created = await apiCreateFixedTerm(data);
+    setFixedTerms(prev => [...prev, created]);
+    toast.success('Plazo fijo agregado');
+  };
+
+  const updateFixedTerm = async (id: string, data: Partial<FixedTerm>) => {
+    const updated = await apiUpdateFixedTerm(id, data);
+    setFixedTerms(prev => prev.map(x => x.id === id ? updated : x));
+    toast.success('Plazo fijo actualizado');
+  };
+
+  const deleteFixedTerm = async (id: string) => {
+    await apiDeleteFixedTerm(id);
+    setFixedTerms(prev => prev.filter(x => x.id !== id));
+    toast.success('Plazo fijo eliminado');
+  };
+
+  const getFixedTermStatus = (): FixedTermStatus[] => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return fixedTerms.map(ft => {
+      const start = new Date(ft.startDate + 'T12:00:00');
+      const end   = new Date(ft.endDate   + 'T12:00:00');
+      const daysTotal     = Math.round((end.getTime() - start.getTime()) / 86400000);
+      const elapsed       = Math.round((today.getTime() - start.getTime()) / 86400000);
+      const daysElapsed   = Math.min(Math.max(0, elapsed), daysTotal);
+      const daysRemaining = Math.round((end.getTime() - today.getTime()) / 86400000);
+      // Interés simple: I = P * TNA/365 * días
+      const dailyRate          = ft.rate / 100 / 365;
+      const accruedInterest    = ft.principal * dailyRate * daysElapsed;
+      const projectedInterest  = ft.principal * dailyRate * daysTotal;
+      const currentValue       = ft.principal + accruedInterest;
+      const isExpired          = daysRemaining < 0;
+      const isExpiringSoon     = daysRemaining >= 0 && daysRemaining <= 7;
+      return {
+        fixedTerm: ft, daysElapsed, daysTotal, daysRemaining,
+        accruedInterest, projectedInterest, currentValue, isExpired, isExpiringSoon,
+      };
+    });
+  };
+
+  // --- INVERSIONES ---
+  const addInvestment = async (data: Omit<Investment, 'id'>) => {
+    const created = await apiCreateInvestment(data);
+    setInvestments(prev => [...prev, created]);
+    toast.success('Inversión agregada');
+  };
+
+  const updateInvestment = async (id: string, data: Partial<Investment>) => {
+    const updated = await apiUpdateInvestment(id, data);
+    setInvestments(prev => prev.map(x => x.id === id ? updated : x));
+    toast.success('Inversión actualizada');
+  };
+
+  const deleteInvestment = async (id: string) => {
+    await apiDeleteInvestment(id);
+    setInvestments(prev => prev.filter(x => x.id !== id));
+    toast.success('Inversión eliminada');
+  };
+
+  const getInvestmentStatus = (): InvestmentStatus[] => {
+    return investments.map(inv => {
+      const purchaseValue    = inv.quantity * inv.purchasePrice;
+      const currentValue     = inv.quantity * inv.currentPrice;
+      const unrealizedGain   = currentValue - purchaseValue;
+      const unrealizedGainPct = purchaseValue > 0 ? (unrealizedGain / purchaseValue) * 100 : 0;
+      return { investment: inv, purchaseValue, currentValue, unrealizedGain, unrealizedGainPct };
+    });
+  };
+
+  const getPortfolioSummary = (): PortfolioSummary => {
+    const savingsSummary    = getSavingsSummary();
+    const ftStatuses        = getFixedTermStatus();
+    const invStatuses       = getInvestmentStatus();
+
+    const fixedTermsTotalConverted = ftStatuses.reduce((sum, ft) => {
+      const val = ft.currentValue;
+      return sum + (ft.fixedTerm.currency === 'USD' ? val * (blue || 1) : val);
+    }, 0);
+    const fixedTermsProjectedInterest = ftStatuses.reduce((sum, ft) => {
+      const val = ft.projectedInterest;
+      return sum + (ft.fixedTerm.currency === 'USD' ? val * (blue || 1) : val);
+    }, 0);
+
+    const investmentsTotalConverted = invStatuses.reduce((sum, inv) => {
+      const val = inv.currentValue;
+      return sum + (inv.investment.currency === 'USD' ? val * (blue || 1) : val);
+    }, 0);
+    const investmentsTotalGain = invStatuses.reduce((sum, inv) => {
+      const val = inv.unrealizedGain;
+      return sum + (inv.investment.currency === 'USD' ? val * (blue || 1) : val);
+    }, 0);
+
+    return {
+      savingsTotalConverted:    savingsSummary.totalConverted,
+      fixedTermsTotalConverted,
+      fixedTermsProjectedInterest,
+      investmentsTotalConverted,
+      investmentsTotalGain,
+      grandTotal: savingsSummary.totalConverted + fixedTermsTotalConverted + investmentsTotalConverted,
+    };
+  };
+
   // Proyección de los próximos N meses
   const getMonthlyProjection = (months: number = 6, cardId?: string | 'all') => {
     const now = new Date();
@@ -426,6 +640,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         addCategory,
         updateCategory,
         deleteCategory,
+        hideCategory,
+        restoreCategory,
+        getAllCategories,
+        suggestCategory,
         setMonthlyIncome: setMonthly,
         getCategoriesByType,
         getRemainingBudget,
@@ -439,6 +657,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         monthlyBudgets,
         getBudgetStatus,
         copyBudgetsFromPreviousMonth,
+        savings,
+        addSaving,
+        updateSaving,
+        deleteSaving,
+        getSavingsSummary,
+        savingTransactions,
+        addSavingTransaction,
+        deleteSavingTransaction,
+        fixedTerms,
+        addFixedTerm,
+        updateFixedTerm,
+        deleteFixedTerm,
+        getFixedTermStatus,
+        investments,
+        addInvestment,
+        updateInvestment,
+        deleteInvestment,
+        getInvestmentStatus,
+        getPortfolioSummary,
       }}
     >
       {children}

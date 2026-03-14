@@ -38,19 +38,39 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    href: '/ahorros',
+    label: 'Ahorros',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/inversiones',
+    label: 'Inversiones',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+      </svg>
+    ),
+  },
 ];
 
 function SidebarInner({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { getBudgetStatus } = useFinance();
+  const { getBudgetStatus, getFixedTermStatus } = useFinance();
   const { unreadCount } = useNotifications();
   const [notifOpen, setNotifOpen] = useState(false);
 
   const budgetStatuses = getBudgetStatus();
   const hasExceeded = budgetStatuses.some(s => s.status === 'exceeded');
   const hasWarning  = budgetStatuses.some(s => s.status === 'warning');
+  const ftStatuses  = getFixedTermStatus();
+  const hasExpiring = ftStatuses.some(s => s.isExpiringSoon || s.isExpired);
 
   const handleLogout = async () => {
     await logout();
@@ -98,6 +118,9 @@ function SidebarInner({ onLinkClick }: { onLinkClick?: () => void }) {
                     className={`w-2 h-2 rounded-full ${hasExceeded ? 'bg-rose-500' : 'bg-amber-400'}`}
                     title={hasExceeded ? 'Presupuesto excedido' : 'Presupuesto cerca del límite'}
                   />
+                )}
+                {item.href === '/inversiones' && hasExpiring && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Plazo fijo próximo a vencer" />
                 )}
                 {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white/50" />}
               </div>
