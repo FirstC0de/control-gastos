@@ -1,0 +1,65 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
+import Sidebar from './Sidebar';
+import { useRecurringAutoSaving } from '../hooks/useRecurringAutoSaving';
+import AutoSavingSuggestionModal from './AutoSavingSuggestionToast';
+import { toast } from 'sonner';
+
+function RecurringAutoSavingPrompt() {
+  const { current, accept, decline, total } = useRecurringAutoSaving();
+  if (!current) return null;
+
+  return (
+    <AutoSavingSuggestionModal
+      income={current.income}
+      rule={current.rule}
+      savingName={current.savingName}
+      queueInfo={total > 1 ? { current: 1, total } : undefined}
+      onAccept={async () => {
+        await accept();
+        const saved = Math.round(current.income.amount * (current.rule.percentage / 100));
+        toast.success(`Ahorro guardado: $${saved.toLocaleString('es-AR')}`, { icon: '✅' });
+      }}
+      onDecline={decline}
+    />
+  );
+}
+
+export default function AppShell({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-slate-500 text-sm">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  return (
+    <div className="min-h-screen bg-slate-200">
+      <Sidebar />
+      <main className="lg:ml-60 pt-14 lg:pt-0 min-h-screen overflow-x-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {children}
+        </div>
+      </main>
+      <RecurringAutoSavingPrompt />
+    </div>
+  );
+}
