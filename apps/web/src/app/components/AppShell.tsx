@@ -4,6 +4,29 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
+import { useRecurringAutoSaving } from '../hooks/useRecurringAutoSaving';
+import AutoSavingSuggestionModal from './AutoSavingSuggestionToast';
+import { toast } from 'sonner';
+
+function RecurringAutoSavingPrompt() {
+  const { current, accept, decline, total } = useRecurringAutoSaving();
+  if (!current) return null;
+
+  return (
+    <AutoSavingSuggestionModal
+      income={current.income}
+      rule={current.rule}
+      savingName={current.savingName}
+      queueInfo={total > 1 ? { current: 1, total } : undefined}
+      onAccept={async () => {
+        await accept();
+        const saved = Math.round(current.income.amount * (current.rule.percentage / 100));
+        toast.success(`Ahorro guardado: $${saved.toLocaleString('es-AR')}`, { icon: '✅' });
+      }}
+      onDecline={decline}
+    />
+  );
+}
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -36,6 +59,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <RecurringAutoSavingPrompt />
     </div>
   );
 }

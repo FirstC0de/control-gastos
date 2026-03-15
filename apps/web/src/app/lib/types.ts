@@ -100,6 +100,38 @@ export type SavingsSummary = {
   byType: Partial<Record<SavingType, number>>; // valor en ARS por tipo
 };
 
+// ── AHORRO AUTOMÁTICO ─────────────────────────────────
+export type AutoSavingRule = {
+  id: string;
+  categoryId: string;
+  categoryName?: string;
+  percentage: number;
+  targetSavingId: string;
+  targetSavingName?: string;
+  isActive: boolean;
+  askEveryTime: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  lastApplied?: string;
+  totalSaved?: number;
+};
+
+export type AutoSavingLogStatus = 'accepted' | 'declined' | 'auto_applied';
+
+export type AutoSavingLog = {
+  id: string;
+  ruleId: string;
+  incomeId: string;
+  incomeName: string;
+  incomeAmount: number;
+  savedAmount: number;
+  percentage: number;
+  targetSavingId: string;
+  targetSavingName?: string;
+  status: AutoSavingLogStatus;
+  createdAt: string;
+};
+
 // ── PLAZOS FIJOS ──────────────────────────────────────────
 export type FixedTerm = {
   id: string;
@@ -198,7 +230,7 @@ export type FinanceContextType = {
   deleteExpense: (id: string) => Promise<void>;
 
   // Ingresos
-  addIncome: (income: Omit<Income, 'id'>) => Promise<void>;
+  addIncome: (income: Omit<Income, 'id'>) => Promise<Income>;
   updateIncome: (id: string, updates: Partial<Income>) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
 
@@ -265,4 +297,13 @@ export type FinanceContextType = {
 
   // Portfolio consolidado
   getPortfolioSummary: () => PortfolioSummary;
+
+  // Ahorro automático
+  autoSavingRules: AutoSavingRule[];
+  autoSavingLogs: AutoSavingLog[];
+  createAutoSavingRule: (rule: Omit<AutoSavingRule, 'id'>) => Promise<void>;
+  updateAutoSavingRule: (id: string, updates: Partial<AutoSavingRule>) => Promise<void>;
+  deleteAutoSavingRule: (id: string) => Promise<void>;
+  applyAutoSaving: (income: Income, rule: AutoSavingRule, status: AutoSavingLogStatus) => Promise<void>;
+  getMatchingRule: (categoryId: string | null | undefined) => AutoSavingRule | undefined;
 };

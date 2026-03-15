@@ -5,14 +5,26 @@ import { useFinance } from '../../context/FinanceContext';
 import ExportModal from '../ExportModal';
 
 export default function CardSummaryPDF() {
-  const { cards, getInstallmentSummary, getMonthlyProjection } = useFinance();
+  const { cards, getInstallmentSummary, getMonthlyProjection, selectedMonth, setSelectedMonth } = useFinance();
   const [selectedCardId, setSelectedCardId] = useState<string | 'all'>('all');
   const [exportOpen, setExportOpen] = useState(false);
 
   const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 2 });
-  const now = new Date();
-  const summary = getInstallmentSummary(now.getFullYear(), now.getMonth(), selectedCardId);
-  const projection = getMonthlyProjection(6, selectedCardId);
+
+  const prevMonth = () => {
+    const { year, month } = selectedMonth;
+    setSelectedMonth(month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 });
+  };
+  const nextMonth = () => {
+    const { year, month } = selectedMonth;
+    setSelectedMonth(month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 });
+  };
+  const monthLabel = new Date(selectedMonth.year, selectedMonth.month, 1)
+    .toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+  const summary = getInstallmentSummary(selectedMonth.year, selectedMonth.month, selectedCardId);
+  // 8 meses: 1 anterior + mes seleccionado + 6 futuros (getMonthlyProjection ya arranca en -1)
+  const projection = getMonthlyProjection(8, selectedCardId);
 
   const cashItems = summary.cashItems;
   const installmentItems = summary.installmentItems;
@@ -25,9 +37,12 @@ export default function CardSummaryPDF() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-base font-semibold text-slate-900">Resumen mensual</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {now.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-          </p>
+          {/* Navegador de mes — sincronizado con el dashboard */}
+          <div className="flex items-center gap-2 mt-1">
+            <button onClick={prevMonth} className="text-slate-400 hover:text-slate-600 text-lg leading-none px-1 transition-colors">‹</button>
+            <span className="text-xs font-medium text-slate-600 capitalize min-w-28 text-center">{monthLabel}</span>
+            <button onClick={nextMonth} className="text-slate-400 hover:text-slate-600 text-lg leading-none px-1 transition-colors">›</button>
+          </div>
         </div>
         <button
           onClick={() => setExportOpen(true)}
@@ -92,23 +107,35 @@ export default function CardSummaryPDF() {
       {/* Proyección visual */}
       <div>
         <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3">
-          Próximos 6 meses
+          Proyección mensual
         </h3>
         <div className="space-y-2">
           {projection.map((p, i) => {
             const maxTotal = Math.max(...projection.map(x => x.total), 1);
+            // i=0 → mes anterior, i=1 → mes seleccionado, i>=2 → futuros
+            const isSelected = i === 1;
+            const isPrev     = i === 0;
             return (
-              <div key={p.label} className="flex items-center gap-3">
-                <span className={`text-xs w-20 shrink-0 ${i === 0 ? 'font-semibold text-indigo-600' : 'text-slate-500'}`}>
+              <div key={p.label} className={`flex items-center gap-3 ${isSelected ? 'bg-indigo-50 rounded-xl px-2 py-1 -mx-2' : ''}`}>
+                <span className={`text-xs w-20 shrink-0 capitalize ${
+                  isSelected ? 'font-bold text-indigo-700' :
+                  isPrev     ? 'text-slate-400 italic' :
+                               'text-slate-500'
+                }`}>
                   {p.label}
+                  {isSelected && <span className="ml-1 text-[10px] bg-indigo-200 text-indigo-700 rounded-full px-1">actual</span>}
                 </span>
                 <div className="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden flex">
-                  <div className="bg-emerald-400 h-full transition-all"
+                  <div className={`h-full transition-all ${isPrev ? 'bg-emerald-300' : 'bg-emerald-400'}`}
                     style={{ width: `${(p.cash / maxTotal) * 100}%` }} />
-                  <div className="bg-amber-400 h-full transition-all"
+                  <div className={`h-full transition-all ${isPrev ? 'bg-amber-300' : 'bg-amber-400'}`}
                     style={{ width: `${(p.installments / maxTotal) * 100}%` }} />
                 </div>
-                <span className={`text-xs font-semibold w-20 text-right shrink-0 ${i === 0 ? 'text-indigo-600' : 'text-slate-700'}`}>
+                <span className={`text-xs font-semibold w-20 text-right shrink-0 ${
+                  isSelected ? 'text-indigo-700 font-bold' :
+                  isPrev     ? 'text-slate-400' :
+                               'text-slate-700'
+                }`}>
                   ${fmt(p.total)}
                 </span>
               </div>

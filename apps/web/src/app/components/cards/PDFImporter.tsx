@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { toast } from 'sonner';
 import { useFinance } from '../../context/FinanceContext';
 import { Expense } from '@controlados/shared';
 import { parseStatement, ImportSummary } from '../../lib/parsers';
@@ -18,6 +19,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
     const [loadingMsg, setLoadingMsg] = useState('');
     const [selectedCard, setSelectedCard] = useState('');
     const [progress, setProgress] = useState(0);
+    const [importResult, setImportResult] = useState<{ cash: number; installments: number; errors: number } | null>(null);
     const [itemCategories, setItemCategories] = useState<Record<number, string | null>>({});
     const [bulkCategory, setBulkCategory] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -79,23 +81,46 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
             const importAbsMonth = selectedMonth.year * 12 + selectedMonth.month;
 
             const itemsWithDupes = parsed.items.map(item => {
+                const isItemInstallment = (item.installments ?? 1) > 1;
+
                 const isDuplicate = expenses.some(e => {
-                    if (item.comprobante && e.comprobante && e.comprobante === item.comprobante) return true;
-                    if ((item.installments ?? 1) <= 1 && (e.installments ?? 1) <= 1) {
-                        return e.description === item.description && e.date === item.date && e.amount === item.amount;
+                    const isExpenseInstallment = (e.installments ?? 1) > 1;
+
+                    if (!isItemInstallment && !isExpenseInstallment) {
+                        // Contado: filtrar primero por mes seleccionado.
+                        // Un contado de un mes anterior NUNCA es duplicado del mes en curso,
+                        // aunque tenga el mismo comprobante (es el mismo resumen, diferente período).
+                        const eKey = e.monthYear ?? e.date.substring(0, 7);
+                        const [eY, eM] = eKey.split('-');
+                        const eAbsMonth = parseInt(eY) * 12 + (parseInt(eM) - 1);
+                        if (eAbsMonth !== importAbsMonth) return false;
+                        // Mismo mes: comprobante tiene prioridad, sino descripción+monto+fecha
+                        if (item.comprobante && e.comprobante && e.comprobante === item.comprobante) return true;
+                        return (
+                            e.description === item.description &&
+                            e.amount === item.amount &&
+                            e.date === item.date
+                        );
                     }
-                    if ((item.installments ?? 1) > 1 && (e.installments ?? 1) > 1) {
+
+                    if (isItemInstallment && isExpenseInstallment) {
+                        // Cuotas: buscar en todos los meses para detectar la misma compra
+                        // aunque venga con diferente número de cuota (ej: 16/18 vs 17/18).
+                        // El comprobante también aplica globalmente para cuotas.
+                        if (item.comprobante && e.comprobante && e.comprobante === item.comprobante) return true;
                         if (e.installments !== item.installments) return false;
-                        const eInstAmt   = e.installmentAmount ?? parseFloat((e.amount / e.installments!).toFixed(2));
+                        const eInstAmt    = e.installmentAmount ?? parseFloat((e.amount / e.installments!).toFixed(2));
                         const itemInstAmt = item.installmentAmount ?? item.amount;
                         if (Math.abs(eInstAmt - itemInstAmt) > 0.5) return false;
                         if (e.description.trim().toLowerCase() !== item.description.trim().toLowerCase()) return false;
+                        // Calcular el mes de la cuota 1 para ambos y comparar
                         const eBaseKey = e.monthYear ?? e.date.substring(0, 7);
                         const [eYStr, eMStr] = eBaseKey.split('-');
-                        const eFirstAbsMonth = parseInt(eYStr) * 12 + (parseInt(eMStr) - 1) - ((e.currentInstallment ?? 1) - 1);
+                        const eFirstAbsMonth   = parseInt(eYStr) * 12 + (parseInt(eMStr) - 1) - ((e.currentInstallment ?? 1) - 1);
                         const itemFirstAbsMonth = importAbsMonth - ((item.currentInstallment ?? 1) - 1);
                         return eFirstAbsMonth === itemFirstAbsMonth;
                     }
+
                     return false;
                 });
                 return { ...item, duplicate: isDuplicate, selected: !isDuplicate };
@@ -136,24 +161,51 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
             return acc;
         }, []);
 
+        let importedCash = 0;
+        let importedInstallments = 0;
+        const errors: string[] = [];
+
         for (let i = 0; i < toImport.length; i++) {
             const item = toImport[i];
             const originalIndex = selectedIndices[i];
             const importMonthYear = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}`;
-            await addExpense({
-                description: item.description,
-                amount: item.amount,
-                date: item.date,
-                cardId: selectedCard || undefined,
-                categoryId: itemCategories[originalIndex] ?? undefined,
-                installments: item.installments,
-                currentInstallment: item.currentInstallment,
-                installmentAmount: item.installmentAmount,
-                currency: item.currency,
-                comprobante: item.comprobante || undefined,
-                monthYear: importMonthYear,
-            } as Omit<Expense, 'id'>);
+            try {
+                await addExpense({
+                    description: item.description,
+                    amount: item.amount,
+                    date: item.date,
+                    cardId: selectedCard || undefined,
+                    categoryId: itemCategories[originalIndex] ?? undefined,
+                    installments: item.installments,
+                    currentInstallment: item.currentInstallment,
+                    installmentAmount: item.installmentAmount,
+                    currency: item.currency,
+                    comprobante: item.comprobante || undefined,
+                    monthYear: importMonthYear,
+                } as Omit<Expense, 'id'>, { silent: true });
+
+                if ((item.installments ?? 1) > 1) importedInstallments++;
+                else importedCash++;
+            } catch {
+                errors.push(item.description);
+            }
             setProgress(Math.round(((i + 1) / toImport.length) * 100));
+        }
+
+        setImportResult({ cash: importedCash, installments: importedInstallments, errors: errors.length });
+
+        // Notificación única al final
+        const dupCount = summary.items.filter(i => i.duplicate && !i.selected).length;
+        const parts: string[] = [];
+        if (importedCash > 0) parts.push(`${importedCash} de contado`);
+        if (importedInstallments > 0) parts.push(`${importedInstallments} en cuotas`);
+
+        const successMsg = `✅ ${importedCash + importedInstallments} gasto${importedCash + importedInstallments !== 1 ? 's' : ''} importado${importedCash + importedInstallments !== 1 ? 's' : ''} (${parts.join(' · ')})`;
+
+        if (errors.length === 0) {
+            toast.success(successMsg + (dupCount > 0 ? ` · ${dupCount} duplicado${dupCount !== 1 ? 's' : ''} omitido${dupCount !== 1 ? 's' : ''}` : ''), { duration: 6000 });
+        } else {
+            toast.warning(`${successMsg} · ${errors.length} error${errors.length !== 1 ? 'es' : ''}: ${errors.slice(0, 3).join(', ')}${errors.length > 3 ? '…' : ''}`, { duration: 8000 });
         }
 
         setStep('done');
@@ -162,6 +214,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
     const resetToUpload = () => {
         setStep('upload');
         setSummary(null);
+        setImportResult(null);
         setItemCategories({});
         setBulkCategory(null);
     };
@@ -430,8 +483,8 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                 )}
 
                 {/* STEP: done */}
-                {step === 'done' && (
-                    <div className="py-16 text-center space-y-4">
+                {step === 'done' && importResult && (
+                    <div className="py-12 text-center space-y-5">
                         <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
                             <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -439,11 +492,38 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                         </div>
                         <div>
                             <p className="text-base font-bold text-slate-900">
-                                {selectedCount} gasto{selectedCount !== 1 ? 's' : ''} importado{selectedCount !== 1 ? 's' : ''}
+                                {importResult.cash + importResult.installments} gasto{importResult.cash + importResult.installments !== 1 ? 's' : ''} importado{importResult.cash + importResult.installments !== 1 ? 's' : ''}
                             </p>
                             {card && <p className="text-sm text-slate-500 mt-1">Asociados a {card.name}</p>}
                         </div>
-                        <div className="flex justify-center gap-3 pt-2">
+                        {/* Desglose */}
+                        <div className="bg-slate-50 rounded-xl px-5 py-4 text-sm text-left space-y-2 max-w-xs mx-auto">
+                            {importResult.cash > 0 && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">Contado</span>
+                                    <span className="font-semibold text-slate-800">{importResult.cash}</span>
+                                </div>
+                            )}
+                            {importResult.installments > 0 && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">En cuotas</span>
+                                    <span className="font-semibold text-slate-800">{importResult.installments}</span>
+                                </div>
+                            )}
+                            {summary?.items.filter(i => i.duplicate).length ? (
+                                <div className="flex justify-between border-t border-slate-200 pt-2">
+                                    <span className="text-amber-600">Duplicados omitidos</span>
+                                    <span className="font-semibold text-amber-700">{summary.items.filter(i => i.duplicate).length}</span>
+                                </div>
+                            ) : null}
+                            {importResult.errors > 0 && (
+                                <div className="flex justify-between border-t border-slate-200 pt-2">
+                                    <span className="text-rose-600">Errores</span>
+                                    <span className="font-semibold text-rose-700">{importResult.errors}</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex justify-center gap-3 pt-1">
                             <button onClick={resetToUpload}
                                 className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
                                 Importar otro

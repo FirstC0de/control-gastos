@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import { Card } from '@controlados/shared';
 import ConfirmModal from '../ui/ConfirmModal';
-import { ToastContainer, useToast } from '../ui/Toast';
+import { toast } from 'sonner';
 
 const CARD_COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 
 export default function CardManager() {
   const { cards, addCard, updateCard, deleteCard } = useFinance();
-  const { toasts, show, remove } = useToast();
 
   const [editing, setEditing]   = useState<Card | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -31,13 +30,11 @@ export default function CardManager() {
     try {
       if (editing) {
         await updateCard(editing.id, form);
-        show('Tarjeta actualizada', 'success');
       } else {
         await addCard(form);
-        show('Tarjeta agregada', 'success');
       }
       resetForm();
-    } catch { show('Error al guardar', 'error'); }
+    } catch { toast.error('Error al guardar'); }
     finally { setLoading(false); }
   };
 
@@ -45,9 +42,8 @@ export default function CardManager() {
     if (!deletingId) return;
     try {
       await deleteCard(deletingId);
-      show('Tarjeta eliminada', 'warning');
       setDeletingId(null);
-    } catch { show('Error al eliminar', 'error'); }
+    } catch { toast.error('Error al eliminar'); }
   };
 
   const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500";
@@ -161,7 +157,6 @@ export default function CardManager() {
         message="¿Eliminar esta tarjeta? Los gastos asociados quedarán sin tarjeta."
         confirmLabel="Eliminar" danger
         onConfirm={handleDelete} onCancel={() => setDeletingId(null)} />
-      <ToastContainer toasts={toasts} onRemove={remove} />
     </>
   );
 }

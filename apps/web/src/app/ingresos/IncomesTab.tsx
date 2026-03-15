@@ -9,7 +9,9 @@ import CategoriesModal from '../components/categories/CategoriesModal';
 import RecurringToggle from '../components/ui/RecurringToggle';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import BulkActionBar from '../components/ui/BulkActionBar';
-import { ToastContainer, useToast } from '../components/ui/Toast';
+import AutoSavingSuggestionModal from '../components/AutoSavingSuggestionToast';
+import { toast } from 'sonner';
+import type { AutoSavingRule, Income as IncomeType } from '@controlados/shared';
 
 const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow";
 const labelClass = "block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5";
@@ -34,17 +36,26 @@ const INCOME_DEFAULT: Omit<Income, 'id'> = {
 };
 
 export default function IncomesTab() {
-  const { monthlyIncomes, addIncome, updateIncome, deleteIncome, categories, selectedMonth, savings, addSavingTransaction } = useFinance();
+  const {
+    monthlyIncomes, addIncome, updateIncome, deleteIncome,
+    categories, selectedMonth, savings, addSavingTransaction,
+    getMatchingRule, applyAutoSaving,
+  } = useFinance();
   const incomes = monthlyIncomes;
   const { blue } = useExchangeRate();
-  const { toasts, show, remove } = useToast();
-
   const defaultDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
   const [form, setForm]                       = useState<Omit<Income, 'id'>>({ ...INCOME_DEFAULT, date: defaultDate });
   const [editingId, setEditingId]             = useState<string | null>(null);
   const [deletingId, setDeletingId]           = useState<string | null>(null);
   const [loading, setLoading]                 = useState(false);
   const [showCatModal, setShowCatModal]       = useState(false);
+
+  // Sugerencia de ahorro automático
+  const [savingSuggestion, setSavingSuggestion] = useState<{
+    income: IncomeType;
+    rule: AutoSavingRule;
+    savingName: string;
+  } | null>(null);
 
   // Aportar al ahorro
   const [savingEnabled,   setSavingEnabled]   = useState(false);
@@ -60,16 +71,15 @@ export default function IncomesTab() {
   };
 
   const handleSubmit = async () => {
-    if (!form.name || !form.amount) { show('Nombre y monto son requeridos', 'error'); return; }
+    if (!form.name || !form.amount) { toast.error('Nombre y monto son requeridos'); return; }
     setLoading(true);
     try {
       if (editingId) {
         await updateIncome(editingId, form);
-        show('Ingreso actualizado', 'success');
       } else {
-        await addIncome(form);
-        show('Ingreso agregado', 'success');
-        // Aportar al ahorro si está habilitado
+        const newIncome = await addIncome(form);
+
+        // Aportar al ahorro manual si está habilitado
         if (savingEnabled && savingAccountId && savingAmount) {
           const amt = parseFloat(savingAmount.replace(',', '.'));
           if (!isNaN(amt) && amt > 0) {
@@ -82,9 +92,29 @@ export default function IncomesTab() {
             });
           }
         }
+
+        // Detectar regla de ahorro automático
+        const rule = getMatchingRule(form.categoryId);
+        if (rule) {
+          const saving = savings.find(s => s.id === rule.targetSavingId);
+          const savingName = saving?.name ?? rule.targetSavingName ?? 'Cuenta de ahorro';
+
+          if (!rule.askEveryTime) {
+            // Aplicar automáticamente y mostrar toast informativo
+            await applyAutoSaving(newIncome, rule, 'auto_applied');
+            const savedAmount = Math.round(newIncome.amount * (rule.percentage / 100));
+            toast.success(`Ahorro automático aplicado: $${savedAmount.toLocaleString('es-AR')}`, {
+              description: `Depositado en ${savingName}`,
+              duration: 6000,
+            });
+          } else {
+            // Mostrar popup centrado con sugerencia
+            setSavingSuggestion({ income: newIncome, rule, savingName });
+          }
+        }
       }
       reset();
-    } catch { show('Error al guardar ingreso', 'error'); }
+    } catch { toast.error('Error al guardar ingreso'); }
     finally { setLoading(false); }
   };
 
@@ -92,9 +122,8 @@ export default function IncomesTab() {
     if (!deletingId) return;
     try {
       await deleteIncome(deletingId);
-      show('Ingreso eliminado', 'warning');
       setDeletingId(null);
-    } catch { show('Error al eliminar ingreso', 'error'); }
+    } catch { toast.error('Error al eliminar ingreso'); }
   };
 
   const startEdit = (income: Income) => {
@@ -131,18 +160,16 @@ export default function IncomesTab() {
   const handleBulkDelete = async () => {
     try {
       await Promise.all([...selectedIds].map(id => deleteIncome(id)));
-      show(`${selectedIds.size} ingreso${selectedIds.size !== 1 ? 's' : ''} eliminado${selectedIds.size !== 1 ? 's' : ''}`, 'warning');
       clearSelection();
-    } catch { show('Error al eliminar', 'error'); }
+    } catch { toast.error('Error al eliminar'); }
     finally { setBulkDeleting(false); }
   };
 
   const handleBulkCategory = async (categoryId: string | null) => {
     try {
       await Promise.all([...selectedIds].map(id => updateIncome(id, { categoryId: categoryId ?? undefined })));
-      show(`Categoría actualizada en ${selectedIds.size} ingreso${selectedIds.size !== 1 ? 's' : ''}`, 'success');
       clearSelection();
-    } catch { show('Error al actualizar', 'error'); }
+    } catch { toast.error('Error al actualizar'); }
   };
 
   const allSelected  = incomes.length > 0 && selectedIds.size === incomes.length;
@@ -518,7 +545,25 @@ export default function IncomesTab() {
         onConfirm={handleDelete}
         onCancel={() => setDeletingId(null)}
       />
-      <ToastContainer toasts={toasts} onRemove={remove} />
+
+      {/* Popup de sugerencia de ahorro automático */}
+      {savingSuggestion && (
+        <AutoSavingSuggestionModal
+          income={savingSuggestion.income}
+          rule={savingSuggestion.rule}
+          savingName={savingSuggestion.savingName}
+          onAccept={async () => {
+            await applyAutoSaving(savingSuggestion.income, savingSuggestion.rule, 'accepted');
+            const saved = Math.round(savingSuggestion.income.amount * (savingSuggestion.rule.percentage / 100));
+            setSavingSuggestion(null);
+            toast.success(`Ahorro guardado: $${saved.toLocaleString('es-AR')}`, { icon: '✅' });
+          }}
+          onDecline={() => {
+            applyAutoSaving(savingSuggestion.income, savingSuggestion.rule, 'declined').catch(console.error);
+            setSavingSuggestion(null);
+          }}
+        />
+      )}
     </>
   );
 }

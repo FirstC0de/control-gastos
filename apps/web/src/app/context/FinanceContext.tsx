@@ -45,6 +45,12 @@ import {
   createInvestment as apiCreateInvestment,
   updateInvestment as apiUpdateInvestment,
   deleteInvestment as apiDeleteInvestment,
+  fetchAutoSavingRules,
+  createAutoSavingRule as apiCreateAutoSavingRule,
+  updateAutoSavingRule as apiUpdateAutoSavingRule,
+  deleteAutoSavingRule as apiDeleteAutoSavingRule,
+  fetchAutoSavingLogs,
+  createAutoSavingLog as apiCreateAutoSavingLog,
 } from '../lib/api';
 import {
   Expense,
@@ -64,6 +70,9 @@ import {
   Investment,
   InvestmentStatus,
   PortfolioSummary,
+  AutoSavingRule,
+  AutoSavingLog,
+  AutoSavingLogStatus,
 } from '@controlados/shared';
 import { suggestCategory as suggestCategoryFn } from '@controlados/shared';
 
@@ -82,6 +91,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [savingTransactions, setSavingTransactions] = useState<SavingTransaction[]>([]);
   const [fixedTerms, setFixedTerms] = useState<FixedTerm[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [autoSavingRules, setAutoSavingRules] = useState<AutoSavingRule[]>([]);
+  const [autoSavingLogs, setAutoSavingLogs] = useState<AutoSavingLog[]>([]);
   const { blue } = useExchangeRate();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState({
@@ -109,6 +120,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         fetchSavingTransactions().then(setSavingTransactions).catch(console.error);
         fetchFixedTerms().then(setFixedTerms).catch(console.error);
         fetchInvestments().then(setInvestments).catch(console.error);
+        fetchAutoSavingRules().then(setAutoSavingRules).catch(console.error);
+        fetchAutoSavingLogs().then(setAutoSavingLogs).catch(console.error);
       } else {
         setExpenses([]);
         setIncomes([]);
@@ -120,6 +133,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         setSavingTransactions([]);
         setFixedTerms([]);
         setInvestments([]);
+        setAutoSavingRules([]);
+        setAutoSavingLogs([]);
       }
 
 
@@ -227,10 +242,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
 
   // --- GASTOS ---
-  const addExpense = async (e: Omit<Expense, 'id'>) => {
+  const addExpense = async (e: Omit<Expense, 'id'>, opts?: { silent?: boolean }) => {
     const newExp = await apiCreateExpense(e);
     setExpenses(prev => [...prev, newExp]);
-    toast.success('Gasto agregado');
+    if (!opts?.silent) toast.success('Gasto agregado');
   };
 
   const updateExpense = async (id: string, updates: Partial<Expense>) => {
@@ -246,10 +261,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   // --- INGRESOS ---
-  const addIncome = async (i: Omit<Income, 'id'>) => {
+  const addIncome = async (i: Omit<Income, 'id'>): Promise<Income> => {
     const newInc = await apiCreateIncome(i);
     setIncomes(prev => [...prev, newInc]);
     toast.success('Ingreso agregado');
+    return newInc;
   };
 
   const updateIncome = async (id: string, updates: Partial<Income>) => {
@@ -344,35 +360,40 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const getBalance = (): number => getTotalIncome() - getTotalExpenses();
 
   // Lógica de cuotas — cuánto pagar en un mes dado
+  // Usa la misma lógica que monthlyExpenses para que los totales sean consistentes
   const getInstallmentSummary = (year: number, month: number, cardId?: string | 'all') => {
     // month es 0-indexed (igual que Date)
+    const targetAbsMonth = year * 12 + month;
     const filtered = cardId && cardId !== 'all'
       ? expenses.filter(e => e.cardId === cardId)
       : expenses;
     return filtered.reduce((acc, expense) => {
-      const expenseDate = new Date(expense.date);
       const inst = expense.installments ?? 1;
-      const instAmount = expense.installmentAmount ?? expense.amount;
+      const instAmount = expense.installmentAmount ?? parseFloat((expense.amount / inst).toFixed(2));
 
-
-      if (inst === 1) {
-        // Contado: solo aparece en su mes
-        if (expenseDate.getFullYear() === year && expenseDate.getMonth() === month) {
+      if (inst === 1 && !expense.recurring) {
+        // Contado: usa monthYear igual que monthlyExpenses
+        const filterKey = expense.monthYear ?? expense.date.substring(0, 7);
+        const [fy, fm] = filterKey.split('-');
+        if (parseInt(fy) === year && parseInt(fm) - 1 === month) {
           acc.cash += expense.amount;
           acc.cashItems.push(expense);
         }
-      } else {
-        // Cuotas: calcular cuál cuota cae en targetDate
-        const monthsDiff =
-          (year - expenseDate.getFullYear()) * 12 +
-          (month - expenseDate.getMonth());
+      } else if (inst > 1) {
+        // Cuotas: misma lógica que monthlyExpenses (usa monthYear + currentInstallment)
+        const curInst    = expense.currentInstallment ?? 1;
+        const baseKey    = expense.monthYear ?? expense.date.substring(0, 7);
+        const [bYearStr, bMonthStr] = baseKey.split('-');
+        const baseAbsMonth  = parseInt(bYearStr) * 12 + (parseInt(bMonthStr) - 1);
+        const firstAbsMonth = baseAbsMonth - (curInst - 1);
+        const lastAbsMonth  = firstAbsMonth + (inst - 1);
 
-        const installmentIndex = 1 + monthsDiff; // cuota 1 arranca en la fecha de compra
-        if (installmentIndex >= 1 && installmentIndex <= inst) {
+        if (targetAbsMonth >= firstAbsMonth && targetAbsMonth <= lastAbsMonth) {
+          const instForThisMonth = targetAbsMonth - firstAbsMonth + 1;
           acc.installments += instAmount;
           acc.installmentItems.push({
             ...expense,
-            currentInstallment: installmentIndex,
+            currentInstallment: instForThisMonth,
           });
         }
       }
@@ -595,11 +616,68 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  // Proyección de los próximos N meses
-  const getMonthlyProjection = (months: number = 6, cardId?: string | 'all') => {
-    const now = new Date();
+  // --- AHORRO AUTOMÁTICO ---
+  const createAutoSavingRule = async (r: Omit<AutoSavingRule, 'id'>) => {
+    const newRule = await apiCreateAutoSavingRule(r);
+    setAutoSavingRules(prev => [...prev, newRule]);
+  };
+
+  const updateAutoSavingRule = async (id: string, updates: Partial<AutoSavingRule>) => {
+    const updated = await apiUpdateAutoSavingRule(id, updates);
+    setAutoSavingRules(prev => prev.map(x => x.id === id ? updated : x));
+  };
+
+  const deleteAutoSavingRule = async (id: string) => {
+    await apiDeleteAutoSavingRule(id);
+    setAutoSavingRules(prev => prev.filter(x => x.id !== id));
+  };
+
+  const getMatchingRule = (categoryId: string | null | undefined): AutoSavingRule | undefined => {
+    if (!categoryId) return undefined;
+    return autoSavingRules.find(r => r.isActive && r.categoryId === categoryId);
+  };
+
+  const applyAutoSaving = async (income: Income, rule: AutoSavingRule, status: AutoSavingLogStatus) => {
+    const savedAmount = Math.round(income.amount * (rule.percentage / 100) * 100) / 100;
+
+    if (status !== 'declined') {
+      await addSavingTransaction({
+        savingId: rule.targetSavingId,
+        type: 'deposit',
+        amount: savedAmount,
+        date: income.date,
+        notes: `Ahorro automático - ${income.name}`,
+        sourceIncomeId: income.id,
+      });
+      const updatedRule = await apiUpdateAutoSavingRule(rule.id, {
+        lastApplied: new Date().toISOString(),
+        totalSaved: (rule.totalSaved ?? 0) + savedAmount,
+      });
+      setAutoSavingRules(prev => prev.map(x => x.id === rule.id ? updatedRule : x));
+    }
+
+    const log = await apiCreateAutoSavingLog({
+      ruleId: rule.id,
+      incomeId: income.id,
+      incomeName: income.name,
+      incomeAmount: income.amount,
+      savedAmount,
+      percentage: rule.percentage,
+      targetSavingId: rule.targetSavingId,
+      targetSavingName: rule.targetSavingName,
+      status,
+      createdAt: new Date().toISOString(),
+    });
+    setAutoSavingLogs(prev => [log, ...prev]);
+  };
+
+  // Proyección de N meses: empieza 1 mes antes del mes seleccionado
+  // Resultado: [mes anterior, mes seleccionado, +1, +2, ..., +6] = 8 meses
+  const getMonthlyProjection = (months: number = 8, cardId?: string | 'all') => {
+    const { year, month } = selectedMonth;
+    // Offset -1 para incluir 1 mes previo al seleccionado
     return Array.from({ length: months }, (_, i) => {
-      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const date = new Date(year, month - 1 + i, 1);
       const label = date.toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
       const summary = getInstallmentSummary(date.getFullYear(), date.getMonth(), cardId);
       return {
@@ -676,6 +754,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         deleteInvestment,
         getInvestmentStatus,
         getPortfolioSummary,
+        dataLoading: false,
+        autoSavingRules,
+        autoSavingLogs,
+        createAutoSavingRule,
+        updateAutoSavingRule,
+        deleteAutoSavingRule,
+        applyAutoSaving,
+        getMatchingRule,
       }}
     >
       {children}

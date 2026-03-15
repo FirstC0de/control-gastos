@@ -7,7 +7,7 @@ import { Expense } from '@controlados/shared';
 import CategorySelector from './categories/CategorySelector';
 import ConfirmModal from './ui/ConfirmModal';
 import BulkActionBar from './ui/BulkActionBar';
-import { ToastContainer, useToast } from './ui/Toast';
+import { toast } from 'sonner';
 
 // ── Icons ────────────────────────────────────────────────
 const SearchIcon = () => (
@@ -34,7 +34,6 @@ const CardIcon = () => (
 export default function ExpenseList() {
   const { monthlyExpenses, updateExpense, deleteExpense, categories, cards } = useFinance();
   const { blue } = useExchangeRate();
-  const { toasts, show, remove } = useToast();
 
   // ── Filtros ───────────────────────────────────────────
   const [search, setSearch]           = useState('');
@@ -111,9 +110,8 @@ export default function ExpenseList() {
     setLoading(true);
     try {
       await Promise.all([...selectedIds].map(id => deleteExpense(id)));
-      show(`${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''} eliminado${selectedIds.size !== 1 ? 's' : ''}`, 'warning');
       clearSelection();
-    } catch { show('Error al eliminar', 'error'); }
+    } catch { toast.error('Error al eliminar'); }
     finally { setLoading(false); setBulkDeleting(false); }
   };
 
@@ -121,9 +119,8 @@ export default function ExpenseList() {
     setLoading(true);
     try {
       await Promise.all([...selectedIds].map(id => updateExpense(id, { categoryId: categoryId ?? undefined })));
-      show(`Categoría actualizada en ${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''}`, 'success');
       clearSelection();
-    } catch { show('Error al actualizar categoría', 'error'); }
+    } catch { toast.error('Error al actualizar categoría'); }
     finally { setLoading(false); }
   };
 
@@ -131,9 +128,8 @@ export default function ExpenseList() {
     setLoading(true);
     try {
       await Promise.all([...selectedIds].map(id => updateExpense(id, { cardId: cardId ?? undefined })));
-      show(`Tarjeta actualizada en ${selectedIds.size} gasto${selectedIds.size !== 1 ? 's' : ''}`, 'success');
       clearSelection();
-    } catch { show('Error al actualizar tarjeta', 'error'); }
+    } catch { toast.error('Error al actualizar tarjeta'); }
     finally { setLoading(false); }
   };
 
@@ -153,9 +149,8 @@ export default function ExpenseList() {
     setLoading(true);
     try {
       await updateExpense(id, currentEdits);
-      show('Gasto actualizado', 'success');
       setEditingId(null);
-    } catch { show('Error al actualizar', 'error'); }
+    } catch { toast.error('Error al actualizar'); }
     finally { setLoading(false); }
   };
 
@@ -164,9 +159,8 @@ export default function ExpenseList() {
     setLoading(true);
     try {
       await deleteExpense(deletingExpense.id);
-      show(`"${deletingExpense.description}" eliminado`, 'warning');
       setDeletingExpense(null);
-    } catch { show('Error al eliminar', 'error'); }
+    } catch { toast.error('Error al eliminar'); }
     finally { setLoading(false); }
   };
 
@@ -593,7 +587,6 @@ export default function ExpenseList() {
         onConfirm={handleDelete}
         onCancel={() => setDeletingExpense(null)}
       />
-      <ToastContainer toasts={toasts} onRemove={remove} />
     </>
   );
 }

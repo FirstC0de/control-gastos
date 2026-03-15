@@ -6,7 +6,7 @@ import { useFinance } from '../../context/FinanceContext';
 import { Category } from '@controlados/shared';
 import CategoryForm from './CategoryForm';
 import ConfirmModal from '../ui/ConfirmModal';
-import { ToastContainer, useToast } from '../ui/Toast';
+import { toast } from 'sonner';
 
 interface CategoriesModalProps {
   isOpen: boolean;
@@ -23,8 +23,6 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     addCategory, updateCategory, deleteCategory,
     hideCategory, restoreCategory,
   } = useFinance();
-  const { toasts, show, remove } = useToast();
-
   const [tab, setTab]                     = useState<Tab>(defaultType === 'income' ? 'income' : 'expense');
   const [view, setView]                   = useState<View>('list');
   const [editingId, setEditingId]         = useState<string | null>(null);
@@ -53,10 +51,10 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     setLoading(true);
     try {
       await addCategory({ ...data, type: tab, isActive: true });
-      show(`Categoría "${data.name}" creada`, 'success');
+      toast.success(`Categoría "${data.name}" creada`);
       setView('list');
     } catch {
-      show('Error al crear la categoría', 'error');
+      toast.error('Error al crear la categoría');
     } finally {
       setLoading(false);
     }
@@ -67,11 +65,11 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     setLoading(true);
     try {
       await updateCategory(editingId, data);
-      show(`Categoría "${data.name}" actualizada`, 'success');
+      toast.success(`Categoría "${data.name}" actualizada`);
       setView('list');
       setEditingId(null);
     } catch {
-      show('Error al actualizar la categoría', 'error');
+      toast.error('Error al actualizar la categoría');
     } finally {
       setLoading(false);
     }
@@ -82,10 +80,10 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     setLoading(true);
     try {
       await deleteCategory(deletingId);
-      show(`Categoría "${deletingCategory.name}" eliminada`, 'warning');
+      toast.warning(`Categoría "${deletingCategory.name}" eliminada`);
       setDeletingId(null);
     } catch {
-      show('Error al eliminar la categoría', 'error');
+      toast.error('Error al eliminar la categoría');
     } finally {
       setLoading(false);
     }
@@ -95,9 +93,9 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     setLoading(true);
     try {
       await hideCategory(cat.id);
-      show(`"${cat.name}" ocultada`, 'warning');
+      toast.warning(`"${cat.name}" ocultada`);
     } catch {
-      show('Error al ocultar', 'error');
+      toast.error('Error al ocultar');
     } finally {
       setLoading(false);
     }
@@ -107,9 +105,9 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
     setLoading(true);
     try {
       await restoreCategory(cat.id);
-      show(`"${cat.name}" restaurada`, 'success');
+      toast.success(`"${cat.name}" restaurada`);
     } catch {
-      show('Error al restaurar', 'error');
+      toast.error('Error al restaurar');
     } finally {
       setLoading(false);
     }
@@ -358,7 +356,6 @@ export default function CategoriesModal({ isOpen, onClose, defaultType = 'expens
         onCancel={() => setDeletingId(null)}
       />
 
-      <ToastContainer toasts={toasts} onRemove={remove} />
     </>,
     document.body
   );

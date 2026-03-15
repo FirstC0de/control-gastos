@@ -8,7 +8,7 @@ import CategorySelector from '../components/categories/CategorySelector';
 import CategoriesModal from '../components/categories/CategoriesModal';
 import RecurringToggle from '../components/ui/RecurringToggle';
 import ConfirmModal from '../components/ui/ConfirmModal';
-import { ToastContainer, useToast } from '../components/ui/Toast';
+import { toast } from 'sonner';
 
 const TagIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,8 +30,6 @@ export default function BudgetsTab() {
     copyBudgetsFromPreviousMonth,
   } = useFinance();
   const { blue } = useExchangeRate();
-  const { toasts, show, remove } = useToast();
-
   const [form, setForm]                         = useState<Omit<Budget, 'id' | 'spent'>>({ ...EMPTY });
   const [editingId, setEditingId]               = useState<string | null>(null);
   const [deletingId, setDeletingId]             = useState<string | null>(null);
@@ -51,8 +49,8 @@ export default function BudgetsTab() {
   };
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) { show('El nombre es requerido', 'error'); return; }
-    if (form.amount <= 0)  { show('El monto debe ser mayor a 0', 'error'); return; }
+    if (!form.name.trim()) { toast.error('El nombre es requerido'); return; }
+    if (form.amount <= 0)  { toast.error('El monto debe ser mayor a 0'); return; }
 
     setLoading(true);
     const monthYear = form.recurring
@@ -62,13 +60,11 @@ export default function BudgetsTab() {
     try {
       if (editingId) {
         await updateBudget(editingId, { ...form, monthYear: monthYear ?? undefined });
-        show('Presupuesto actualizado', 'success');
       } else {
         await addBudget({ ...form, ...(monthYear ? { monthYear } : {}) });
-        show('Presupuesto creado', 'success');
       }
       reset();
-    } catch { show('Error al guardar el presupuesto', 'error'); }
+    } catch { toast.error('Error al guardar el presupuesto'); }
     finally { setLoading(false); }
   };
 
@@ -76,9 +72,9 @@ export default function BudgetsTab() {
     setCopying(true);
     try {
       const count = await copyBudgetsFromPreviousMonth();
-      if (count > 0) show(`${count} presupuesto${count !== 1 ? 's' : ''} copiado${count !== 1 ? 's' : ''} del mes anterior`, 'success');
-      else show('No hay presupuestos nuevos para copiar', 'warning');
-    } catch { show('Error al copiar presupuestos', 'error'); }
+      if (count > 0) toast.success(`${count} presupuesto${count !== 1 ? 's' : ''} copiado${count !== 1 ? 's' : ''} del mes anterior`);
+      else toast.warning('No hay presupuestos nuevos para copiar');
+    } catch { toast.error('Error al copiar presupuestos'); }
     finally { setCopying(false); }
   };
 
@@ -86,9 +82,8 @@ export default function BudgetsTab() {
     if (!deletingId) return;
     try {
       await deleteBudget(deletingId);
-      show('Presupuesto eliminado', 'warning');
       setDeletingId(null);
-    } catch { show('Error al eliminar', 'error'); }
+    } catch { toast.error('Error al eliminar'); }
   };
 
   const fmt = (n: number) => n.toLocaleString('es-AR', { minimumFractionDigits: 0 });
@@ -340,7 +335,6 @@ export default function BudgetsTab() {
         onConfirm={handleDelete}
         onCancel={() => setDeletingId(null)}
       />
-      <ToastContainer toasts={toasts} onRemove={remove} />
     </>
   );
 }

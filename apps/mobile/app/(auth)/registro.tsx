@@ -7,23 +7,38 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 
-export default function LoginScreen() {
-  const { login } = useAuth();
+export default function RegistroScreen() {
+  const { register } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
+  const handleRegister = async () => {
+    if (!email || !password || !confirm) {
       Alert.alert('Error', 'Completá todos los campos');
+      return;
+    }
+    if (password !== confirm) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
     setLoading(true);
     try {
-      await login(email.trim(), password);
-    } catch {
-      Alert.alert('Error', 'Email o contraseña incorrectos');
+      await register(email.trim(), password);
+    } catch (e: any) {
+      const msg =
+        e?.code === 'auth/email-already-in-use'
+          ? 'El email ya está registrado'
+          : e?.code === 'auth/invalid-email'
+          ? 'El email no es válido'
+          : 'No se pudo crear la cuenta';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
@@ -36,7 +51,7 @@ export default function LoginScreen() {
     >
       <View style={styles.inner}>
         <Text style={styles.title}>Controlados $</Text>
-        <Text style={styles.subtitle}>Gestión de gastos</Text>
+        <Text style={styles.subtitle}>Crear cuenta</Text>
 
         <TextInput
           style={styles.input}
@@ -56,20 +71,28 @@ export default function LoginScreen() {
           onChangeText={setPassword}
           secureTextEntry
         />
+        <TextInput
+          style={styles.input}
+          placeholder="Confirmar contraseña"
+          placeholderTextColor={Colors.textMuted}
+          value={confirm}
+          onChangeText={setConfirm}
+          secureTextEntry
+        />
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
+          onPress={handleRegister}
           disabled={loading}
         >
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.buttonText}>Ingresar</Text>
+            : <Text style={styles.buttonText}>Crear cuenta</Text>
           }
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.link} onPress={() => router.push('/(auth)/registro')}>
-          <Text style={styles.linkText}>¿No tenés cuenta? <Text style={styles.linkBold}>Registrate</Text></Text>
+        <TouchableOpacity style={styles.link} onPress={() => router.back()}>
+          <Text style={styles.linkText}>¿Ya tenés cuenta? <Text style={styles.linkBold}>Iniciá sesión</Text></Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

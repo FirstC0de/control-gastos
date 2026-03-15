@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { useExchangeRate } from '../context/ExchangeRateContext';
 import CardDashboardModal from './cards/CardDashboardModal';
@@ -10,7 +10,18 @@ import MonthNavigator from './ui/MonthNavigator';
 type ViewMode = 'combinado' | 'separado';
 
 export default function Dashboard() {
-  const { monthlyExpenses, monthlyIncomes } = useFinance();
+  const { monthlyExpenses, monthlyIncomes, selectedMonth, setSelectedMonth } = useFinance();
+
+  // Al entrar al dashboard, sincronizar al mes en curso
+  useEffect(() => {
+    const now = new Date();
+    const currentYear  = now.getFullYear();
+    const currentMonth = now.getMonth();
+    if (selectedMonth.year !== currentYear || selectedMonth.month !== currentMonth) {
+      setSelectedMonth({ year: currentYear, month: currentMonth });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const expenses = monthlyExpenses;
   const incomes = monthlyIncomes;
   const { blue } = useExchangeRate();
@@ -49,7 +60,19 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Resumen financiero mensual</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-sm text-slate-400 capitalize">
+                {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+              {(selectedMonth.year !== new Date().getFullYear() || selectedMonth.month !== new Date().getMonth()) && (
+                <button
+                  onClick={() => setSelectedMonth({ year: new Date().getFullYear(), month: new Date().getMonth() })}
+                  className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium hover:bg-indigo-200 transition-colors"
+                >
+                  Volver a hoy
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <MonthNavigator />

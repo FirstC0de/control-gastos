@@ -3,7 +3,7 @@ import {
   deleteDoc, getDoc, setDoc, query, orderBy
 } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { Expense, Income, Budget, Category, Card, Saving, SavingTransaction, SavingTransactionType, FixedTerm, Investment } from './types';
+import { Expense, Income, Budget, Category, Card, Saving, SavingTransaction, SavingTransactionType, FixedTerm, Investment, AutoSavingRule, AutoSavingLog } from './types';
 
 // Helper para obtener uid — lanza error claro si no hay sesión
 const getUid = (): string => {
@@ -308,4 +308,44 @@ export const updateInvestment = async (id: string, updates: Partial<Investment>)
 export const deleteInvestment = async (id: string): Promise<void> => {
   const uid = getUid();
   await deleteDoc(doc(db, 'users', uid, 'investments', id));
+};
+
+// ── REGLAS DE AHORRO AUTOMÁTICO ───────────────────────
+export const fetchAutoSavingRules = async (): Promise<AutoSavingRule[]> => {
+  const uid = getUid();
+  const snap = await getDocs(collection(db, 'users', uid, 'auto_saving_rules'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as AutoSavingRule));
+};
+
+export const createAutoSavingRule = async (r: Omit<AutoSavingRule, 'id'>): Promise<AutoSavingRule> => {
+  const uid = getUid();
+  const ref = await addDoc(collection(db, 'users', uid, 'auto_saving_rules'), cleanUndefined(r));
+  return { id: ref.id, ...r };
+};
+
+export const updateAutoSavingRule = async (id: string, updates: Partial<AutoSavingRule>): Promise<AutoSavingRule> => {
+  const uid = getUid();
+  const ref = doc(db, 'users', uid, 'auto_saving_rules', id);
+  await updateDoc(ref, cleanUndefined(updates));
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() } as AutoSavingRule;
+};
+
+export const deleteAutoSavingRule = async (id: string): Promise<void> => {
+  const uid = getUid();
+  await deleteDoc(doc(db, 'users', uid, 'auto_saving_rules', id));
+};
+
+// ── HISTORIAL DE AHORRO AUTOMÁTICO ────────────────────
+export const fetchAutoSavingLogs = async (): Promise<AutoSavingLog[]> => {
+  const uid = getUid();
+  const q = query(collection(db, 'users', uid, 'auto_saving_logs'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as AutoSavingLog));
+};
+
+export const createAutoSavingLog = async (l: Omit<AutoSavingLog, 'id'>): Promise<AutoSavingLog> => {
+  const uid = getUid();
+  const ref = await addDoc(collection(db, 'users', uid, 'auto_saving_logs'), cleanUndefined(l));
+  return { id: ref.id, ...l };
 };

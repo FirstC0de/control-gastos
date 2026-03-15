@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "apps/*",
+    "apps/web",
     "packages/*"
   ],
   "scripts": {
     "web": "npm run dev --workspace=apps/web",
-    "mobile": "npm run start --workspace=apps/mobile",
+    "mobile": "cd apps/mobile && npm start",
     "build:web": "npm run build --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web"
+  },
+  "devDependencies": {
+    "babel-plugin-module-resolver": "^5.0.2"
   }
 }

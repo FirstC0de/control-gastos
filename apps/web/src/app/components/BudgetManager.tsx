@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { Budget } from '@controlados/shared';
 import CategorySelector from './categories/CategorySelector';
-import { ToastContainer, useToast } from './ui/Toast';
+import { toast } from 'sonner';
 import ConfirmModal from './ui/ConfirmModal';
 
 export default function BudgetManager() {
@@ -29,7 +29,6 @@ export default function BudgetManager() {
   });
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const { toasts, show, remove } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,10 +65,9 @@ export default function BudgetManager() {
     if (!deletingId) return;
     try {
       await deleteBudget(deletingId);
-      show('Presupuesto eliminado', 'warning');
       setDeletingId(null);
     } catch {
-      show('Error al eliminar', 'error');
+      toast.error('Error al eliminar');
     }
   };
 
@@ -233,7 +231,6 @@ export default function BudgetManager() {
                   <ConfirmModal isOpen={!!deletingId} title="Eliminar presupuesto"
                     message="¿Eliminar este presupuesto?" confirmLabel="Eliminar" danger
                     onConfirm={handleDelete} onCancel={() => setDeletingId(null)} />
-                  <ToastContainer toasts={toasts} onRemove={remove} />
                 </div>
               );
             })}

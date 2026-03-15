@@ -35,6 +35,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [savingTransactions, setSavingTransactions] = useState<SavingTransaction[]>([]);
   const [fixedTerms, setFixedTerms] = useState<FixedTerm[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
   const { blue } = useExchangeRate();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState({ year: now.getFullYear(), month: now.getMonth() });
@@ -42,24 +43,28 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        fetchExpenses().then(setExpenses).catch(console.error);
-        fetchIncomes().then(setIncomes).catch(console.error);
-        fetchBudgets().then(setBudgets).catch(console.error);
-        fetchCategories().then(async (cats) => {
-          setCategories(cats);
-          const seeded = await checkAndSeedCategories().catch(() => false);
-          if (seeded) fetchCategories().then(setCategories).catch(console.error);
-        }).catch(console.error);
-        fetchMonthlyIncome().then(setMonthlyIncome).catch(console.error);
-        fetchCards().then(setCards).catch(console.error);
-        fetchSavings().then(setSavings).catch(console.error);
-        fetchSavingTransactions().then(setSavingTransactions).catch(console.error);
-        fetchFixedTerms().then(setFixedTerms).catch(console.error);
-        fetchInvestments().then(setInvestments).catch(console.error);
+        setDataLoading(true);
+        Promise.all([
+          fetchExpenses().then(setExpenses),
+          fetchIncomes().then(setIncomes),
+          fetchBudgets().then(setBudgets),
+          fetchCategories().then(async (cats) => {
+            setCategories(cats);
+            const seeded = await checkAndSeedCategories().catch(() => false);
+            if (seeded) fetchCategories().then(setCategories).catch(console.error);
+          }),
+          fetchMonthlyIncome().then(setMonthlyIncome),
+          fetchCards().then(setCards),
+          fetchSavings().then(setSavings),
+          fetchSavingTransactions().then(setSavingTransactions),
+          fetchFixedTerms().then(setFixedTerms),
+          fetchInvestments().then(setInvestments),
+        ]).catch(console.error).finally(() => setDataLoading(false));
       } else {
         setExpenses([]); setIncomes([]); setBudgets([]); setCategories([]);
         setMonthlyIncome(0); setCards([]); setSavings([]); setSavingTransactions([]);
         setFixedTerms([]); setInvestments([]);
+        setDataLoading(false);
       }
     });
     return () => unsubscribe();
@@ -127,27 +132,27 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [incomes, selectedMonth]);
 
   // ── TARJETAS ──────────────────────────────────────────────
-  const addCard = async (c: Omit<Card, 'id'>) => { setCards(prev => [...prev, await apiCreateCard(c)]); };
+  const addCard = async (c: Omit<Card, 'id'>) => { const card = await apiCreateCard(c); setCards(prev => [...prev, card]); };
   const updateCard = async (id: string, u: Partial<Card>) => { setCards(prev => prev.map(x => x.id === id ? { ...x, ...u } : x)); await apiUpdateCard(id, u); };
   const deleteCard = async (id: string) => { await apiDeleteCard(id); setCards(prev => prev.filter(x => x.id !== id)); };
 
   // ── GASTOS ────────────────────────────────────────────────
-  const addExpense = async (e: Omit<Expense, 'id'>) => { setExpenses(prev => [...prev, await apiCreateExpense(e)]); };
+  const addExpense = async (e: Omit<Expense, 'id'>, _opts?: { silent?: boolean }) => { const expense = await apiCreateExpense(e); setExpenses(prev => [...prev, expense]); };
   const updateExpense = async (id: string, u: Partial<Expense>) => { setExpenses(prev => prev.map(x => x.id === id ? { ...x, ...u } : x)); await apiUpdateExpense(id, u); };
   const deleteExpense = async (id: string) => { await apiDeleteExpense(id); setExpenses(prev => prev.filter(x => x.id !== id)); };
 
   // ── INGRESOS ──────────────────────────────────────────────
-  const addIncome = async (i: Omit<Income, 'id'>) => { setIncomes(prev => [...prev, await apiCreateIncome(i)]); };
+  const addIncome = async (i: Omit<Income, 'id'>) => { const income = await apiCreateIncome(i); setIncomes(prev => [...prev, income]); };
   const updateIncome = async (id: string, u: Partial<Income>) => { setIncomes(prev => prev.map(x => x.id === id ? { ...x, ...u } : x)); await apiUpdateIncome(id, u); };
   const deleteIncome = async (id: string) => { await apiDeleteIncome(id); setIncomes(prev => prev.filter(x => x.id !== id)); };
 
   // ── PRESUPUESTOS ──────────────────────────────────────────
-  const addBudget = async (b: Omit<Budget, 'id'>) => { setBudgets(prev => [...prev, await apiCreateBudget(b)]); };
+  const addBudget = async (b: Omit<Budget, 'id'>) => { const budget = await apiCreateBudget(b); setBudgets(prev => [...prev, budget]); };
   const updateBudget = async (id: string, u: Partial<Budget>) => { setBudgets(prev => prev.map(x => x.id === id ? { ...x, ...u } : x)); await apiUpdateBudget(id, u); };
   const deleteBudget = async (id: string) => { await apiDeleteBudget(id); setBudgets(prev => prev.filter(x => x.id !== id)); };
 
   // ── CATEGORÍAS ────────────────────────────────────────────
-  const addCategory = async (c: Omit<Category, 'id'>) => { setCategories(prev => [...prev, await apiCreateCategory(c)]); };
+  const addCategory = async (c: Omit<Category, 'id'>) => { const cat = await apiCreateCategory(c); setCategories(prev => [...prev, cat]); };
   const updateCategory = async (id: string, u: Partial<Category>) => { setCategories(prev => prev.map(x => x.id === id ? { ...x, ...u } : x)); await apiUpdateCategory(id, u); };
   const deleteCategory = async (id: string) => { await apiDeleteCategory(id); setCategories(prev => prev.filter(x => x.id !== id)); };
   const hideCategory = async (id: string) => { await apiHideCategory(id); setCategories(prev => prev.map(x => x.id === id ? { ...x, isActive: false } : x)); };
@@ -233,7 +238,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── AHORROS ───────────────────────────────────────────────
-  const addSaving = async (data: Omit<Saving, 'id'>) => { setSavings(prev => [...prev, await apiCreateSaving(data)]); };
+  const addSaving = async (data: Omit<Saving, 'id'>) => { const saving = await apiCreateSaving(data); setSavings(prev => [...prev, saving]); };
   const updateSaving = async (id: string, data: Partial<Saving>) => { setSavings(prev => prev.map(x => x.id === id ? { ...x, ...data } : x)); await apiUpdateSaving(id, data); };
   const deleteSaving = async (id: string) => { await apiDeleteSaving(id); setSavings(prev => prev.filter(x => x.id !== id)); };
 
@@ -264,7 +269,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── PLAZOS FIJOS ──────────────────────────────────────────
-  const addFixedTerm = async (data: Omit<FixedTerm, 'id'>) => { setFixedTerms(prev => [...prev, await apiCreateFixedTerm(data)]); };
+  const addFixedTerm = async (data: Omit<FixedTerm, 'id'>) => { const ft = await apiCreateFixedTerm(data); setFixedTerms(prev => [...prev, ft]); };
   const updateFixedTerm = async (id: string, data: Partial<FixedTerm>) => { setFixedTerms(prev => prev.map(x => x.id === id ? { ...x, ...data } : x)); await apiUpdateFixedTerm(id, data); };
   const deleteFixedTerm = async (id: string) => { await apiDeleteFixedTerm(id); setFixedTerms(prev => prev.filter(x => x.id !== id)); };
 
@@ -285,7 +290,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   };
 
   // ── INVERSIONES ───────────────────────────────────────────
-  const addInvestment = async (data: Omit<Investment, 'id'>) => { setInvestments(prev => [...prev, await apiCreateInvestment(data)]); };
+  const addInvestment = async (data: Omit<Investment, 'id'>) => { const inv = await apiCreateInvestment(data); setInvestments(prev => [...prev, inv]); };
   const updateInvestment = async (id: string, data: Partial<Investment>) => { setInvestments(prev => prev.map(x => x.id === id ? { ...x, ...data } : x)); await apiUpdateInvestment(id, data); };
   const deleteInvestment = async (id: string) => { await apiDeleteInvestment(id); setInvestments(prev => prev.filter(x => x.id !== id)); };
 
@@ -324,6 +329,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       addSavingTransaction, deleteSavingTransaction,
       addFixedTerm, updateFixedTerm, deleteFixedTerm, getFixedTermStatus,
       addInvestment, updateInvestment, deleteInvestment, getInvestmentStatus, getPortfolioSummary,
+      dataLoading,
     }}>
       {children}
     </FinanceContext.Provider>
