@@ -26,6 +26,9 @@
     "recharts": "^3.8.0",
     "sonner": "^2.0.7"
   },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "*"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.58.2",
