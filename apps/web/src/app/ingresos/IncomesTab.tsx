@@ -330,7 +330,7 @@ export default function IncomesTab() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => { setSavingEnabled(v => !v); setSavingAmount(''); setSavingAccountId(''); }}
+                onClick={() => { setSavingEnabled(v => !v); setSavingAmount(0); setSavingAccountId(''); }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
                   savingEnabled
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
