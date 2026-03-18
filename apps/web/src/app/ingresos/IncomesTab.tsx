@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { useExchangeRate } from '../context/ExchangeRateContext';
 import { Income, Currency } from '@controlados/shared';
+import NumericInput from '../components/ui/NumericInput';
 import CategorySelector from '../components/categories/CategorySelector';
 import CategoriesModal from '../components/categories/CategoriesModal';
 import RecurringToggle from '../components/ui/RecurringToggle';
@@ -43,7 +44,11 @@ export default function IncomesTab() {
   } = useFinance();
   const incomes = monthlyIncomes;
   const { blue } = useExchangeRate();
-  const defaultDate = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
+  const _today = new Date();
+  const _isCurrentMonth = selectedMonth.year === _today.getFullYear() && selectedMonth.month === _today.getMonth();
+  const defaultDate = _isCurrentMonth
+    ? _today.toISOString().split('T')[0]
+    : `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
   const [form, setForm]                       = useState<Omit<Income, 'id'>>({ ...INCOME_DEFAULT, date: defaultDate });
   const [editingId, setEditingId]             = useState<string | null>(null);
   const [deletingId, setDeletingId]           = useState<string | null>(null);
@@ -60,13 +65,13 @@ export default function IncomesTab() {
   // Aportar al ahorro
   const [savingEnabled,   setSavingEnabled]   = useState(false);
   const [savingAccountId, setSavingAccountId] = useState<string>('');
-  const [savingAmount,    setSavingAmount]    = useState('');
+  const [savingAmount,    setSavingAmount]    = useState(0);
 
   const reset = () => {
     setForm({ ...INCOME_DEFAULT, date: defaultDate });
     setEditingId(null);
     setSavingEnabled(false);
-    setSavingAmount('');
+    setSavingAmount(0);
     setSavingAccountId('');
   };
 
@@ -80,8 +85,8 @@ export default function IncomesTab() {
         const newIncome = await addIncome(form);
 
         // Aportar al ahorro manual si está habilitado
-        if (savingEnabled && savingAccountId && savingAmount) {
-          const amt = parseFloat(savingAmount.replace(',', '.'));
+        if (savingEnabled && savingAccountId && savingAmount > 0) {
+          const amt = savingAmount;
           if (!isNaN(amt) && amt > 0) {
             await addSavingTransaction({
               savingId: savingAccountId,
@@ -239,13 +244,12 @@ export default function IncomesTab() {
                   <option value="ARS">$</option>
                   <option value="USD">U$D</option>
                 </select>
-                <input
-                  type="number"
-                  value={form.amount || ''}
-                  onChange={e => setForm(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
+                <NumericInput
+                  value={form.amount}
+                  onChange={val => setForm(p => ({ ...p, amount: val }))}
+                  variant="currency"
+                  min={0}
+                  placeholder="0"
                   className={inputClass}
                 />
               </div>
@@ -326,7 +330,7 @@ export default function IncomesTab() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => { setSavingEnabled(v => !v); setSavingAmount(''); setSavingAccountId(''); }}
+                onClick={() => { setSavingEnabled(v => !v); setSavingAmount(0); setSavingAccountId(''); }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
                   savingEnabled
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
@@ -360,18 +364,17 @@ export default function IncomesTab() {
                   </div>
                   <div>
                     <label className={labelClass}>Monto a aportar</label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
+                    <NumericInput
                       value={savingAmount}
-                      onChange={e => setSavingAmount(e.target.value)}
-                      placeholder="0.00"
+                      onChange={setSavingAmount}
+                      variant="currency"
+                      min={0}
+                      placeholder="0"
                       className={inputClass}
                     />
-                    {form.amount > 0 && savingAmount && (
+                    {form.amount > 0 && savingAmount > 0 && (
                       <p className="text-[10px] text-emerald-600 mt-1">
-                        {((parseFloat(savingAmount) / form.amount) * 100).toFixed(0)}% del ingreso
+                        {((savingAmount / form.amount) * 100).toFixed(0)}% del ingreso
                       </p>
                     )}
                   </div>

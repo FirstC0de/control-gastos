@@ -10,7 +10,7 @@ import CategorySelector from '../categories/CategorySelector';
 
 
 export default function PDFImporter({ onClose }: { onClose?: () => void }) {
-    const { addExpense, cards, expenses, selectedMonth } = useFinance();
+    const { addExpense, cards, expenses, selectedMonth, updateCard } = useFinance();
 
     const [step, setStep] = useState<'upload' | 'review' | 'importing' | 'done'>('upload');
     const [summary, setSummary] = useState<ImportSummary | null>(null);
@@ -22,6 +22,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
     const [importResult, setImportResult] = useState<{ cash: number; installments: number; errors: number } | null>(null);
     const [itemCategories, setItemCategories] = useState<Record<number, string | null>>({});
     const [bulkCategory, setBulkCategory] = useState<string | null>(null);
+    const [updateCardDates, setUpdateCardDates] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow";
@@ -192,6 +193,45 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
             setProgress(Math.round(((i + 1) / toImport.length) * 100));
         }
 
+        // Actualizar fechas de la tarjeta si el usuario lo pidió
+        if (updateCardDates && selectedCard && summary.closingDate) {
+            const card = cards.find(c => c.id === selectedCard);
+            if (card) {
+                const newClosingDay = new Date(summary.closingDate + 'T12:00:00').getDate();
+                const newDueDay    = summary.dueDate
+                    ? new Date(summary.dueDate + 'T12:00:00').getDate()
+                    : card.dueDay;
+
+                const prevHistory = card.closingHistory ?? [];
+                const newRecord = {
+                    closingDate: summary.closingDate,
+                    ...(summary.dueDate ? { dueDate: summary.dueDate } : {}),
+                    source: 'pdf_import' as const,
+                };
+                // Mantener máximo 3 registros (más reciente al final)
+                const newHistory = [...prevHistory, newRecord].slice(-3);
+
+                await updateCard(selectedCard, {
+                    closingDay: newClosingDay,
+                    dueDay: newDueDay,
+                    closingHistory: newHistory,
+                });
+            }
+        } else if (selectedCard && summary.closingDate) {
+            // Aunque no actualice los días, siempre guarda en el historial
+            const card = cards.find(c => c.id === selectedCard);
+            if (card) {
+                const prevHistory = card.closingHistory ?? [];
+                const newRecord = {
+                    closingDate: summary.closingDate,
+                    ...(summary.dueDate ? { dueDate: summary.dueDate } : {}),
+                    source: 'pdf_import' as const,
+                };
+                const newHistory = [...prevHistory, newRecord].slice(-3);
+                await updateCard(selectedCard, { closingHistory: newHistory });
+            }
+        }
+
         setImportResult({ cash: importedCash, installments: importedInstallments, errors: errors.length });
 
         // Notificación única al final
@@ -217,6 +257,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
         setImportResult(null);
         setItemCategories({});
         setBulkCategory(null);
+        setUpdateCardDates(false);
     };
 
     const selectedCount = summary?.items.filter(i => i.selected).length ?? 0;
@@ -338,6 +379,53 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                 )}
                             </div>
                         </div>
+
+                        {/* Banner fechas detectadas */}
+                        {summary.closingDate && (() => {
+                            const selCard = cards.find(c => c.id === selectedCard);
+                            const pdfClosingDay = new Date(summary.closingDate + 'T12:00:00').getDate();
+                            const pdfDueDay     = summary.dueDate ? new Date(summary.dueDate + 'T12:00:00').getDate() : null;
+                            const datesMatch    = selCard && selCard.closingDay === pdfClosingDay && (!pdfDueDay || selCard.dueDay === pdfDueDay);
+                            return (
+                                <div className="bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sky-500 text-base">📅</span>
+                                        <p className="text-sm font-semibold text-sky-800">Fechas detectadas en el resumen</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3 text-xs text-sky-700 font-mono">
+                                        <span>Cierre: <strong>{new Date(summary.closingDate + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></span>
+                                        {summary.dueDate && (
+                                            <span>Vencimiento: <strong>{new Date(summary.dueDate + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}</strong></span>
+                                        )}
+                                    </div>
+                                    {selCard && !datesMatch && (
+                                        <label className="flex items-start gap-2 cursor-pointer select-none pt-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={updateCardDates}
+                                                onChange={e => setUpdateCardDates(e.target.checked)}
+                                                className="mt-0.5 accent-sky-600"
+                                            />
+                                            <span className="text-xs text-sky-700">
+                                                Actualizar <strong>{selCard.name}</strong> con estas fechas
+                                                {selCard.closingDay !== pdfClosingDay && (
+                                                    <span className="text-sky-400"> (cierre: día {selCard.closingDay} → día {pdfClosingDay})</span>
+                                                )}
+                                                {pdfDueDay && selCard.dueDay !== pdfDueDay && (
+                                                    <span className="text-sky-400"> (vto: día {selCard.dueDay} → día {pdfDueDay})</span>
+                                                )}
+                                            </span>
+                                        </label>
+                                    )}
+                                    {selCard && datesMatch && (
+                                        <p className="text-xs text-emerald-600">Las fechas coinciden con tu configuración.</p>
+                                    )}
+                                    {!selCard && (
+                                        <p className="text-xs text-sky-500">Seleccioná una tarjeta para comparar con tu configuración.</p>
+                                    )}
+                                </div>
+                            );
+                        })()}
 
                         {/* Banner duplicados */}
                         {summary.items.some(i => i.duplicate) && (

@@ -6,6 +6,7 @@ import { Budget } from '@controlados/shared';
 import CategorySelector from './categories/CategorySelector';
 import { toast } from 'sonner';
 import ConfirmModal from './ui/ConfirmModal';
+import NumericInput from './ui/NumericInput';
 
 export default function BudgetManager() {
   const {
@@ -113,15 +114,14 @@ export default function BudgetManager() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block mb-1 font-medium">Monto</label>
-            <input
-              type="number"
-              value={formData.amount || ''}
-              onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) || 0 })}
-              className="w-full p-2 border rounded"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
+            <NumericInput
+              value={formData.amount}
+              onChange={val => setFormData({ ...formData, amount: val })}
+              variant="currency"
+              min={0}
+              placeholder="0"
               required
+              className="border-gray-300"
             />
           </div>
 

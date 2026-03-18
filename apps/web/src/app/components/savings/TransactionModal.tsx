@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import type { Saving, SavingTransactionType } from '@controlados/shared';
+import NumericInput from '../ui/NumericInput';
 
 type Props = {
   saving: Saving;
@@ -19,7 +20,7 @@ export default function TransactionModal({ saving, onClose }: Props) {
   const { addSavingTransaction } = useFinance();
 
   const [type,    setType]    = useState<SavingTransactionType>('deposit');
-  const [amount,  setAmount]  = useState('');
+  const [amount,  setAmount]  = useState(0);
   const [date,    setDate]    = useState(new Date().toISOString().slice(0, 10));
   const [notes,   setNotes]   = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,9 +35,8 @@ export default function TransactionModal({ saving, onClose }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const amt = parseFloat(amount.replace(',', '.'));
-    if (isNaN(amt) || amt <= 0) { setError('El monto debe ser mayor a 0'); return; }
-    if (type === 'withdrawal' && amt > saving.balance) {
+    if (amount <= 0) { setError('El monto debe ser mayor a 0'); return; }
+    if (type === 'withdrawal' && amount > saving.balance) {
       setError('El retiro supera el saldo disponible');
       return;
     }
@@ -45,7 +45,7 @@ export default function TransactionModal({ saving, onClose }: Props) {
       await addSavingTransaction({
         savingId: saving.id,
         type,
-        amount: amt,
+        amount,
         date,
         ...(notes.trim() && { notes: notes.trim() }),
       });
@@ -116,15 +116,14 @@ export default function TransactionModal({ saving, onClose }: Props) {
             {/* Monto */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Monto</label>
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
+              <NumericInput
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
-                placeholder="0.00"
+                onChange={setAmount}
+                variant="currency"
+                min={0}
+                placeholder="0"
                 autoFocus
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono placeholder:text-slate-300"
+                className="text-sm border-slate-200 focus:ring-emerald-500"
               />
             </div>
 

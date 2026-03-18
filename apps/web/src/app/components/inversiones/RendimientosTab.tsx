@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import NumericInput from '../ui/NumericInput';
 import { useFinance } from '../../context/FinanceContext';
 import { useExchangeRate } from '../../context/ExchangeRateContext';
 import {
@@ -60,13 +61,13 @@ export default function RendimientosTab() {
             <p className="text-xs text-slate-400 mt-0.5">Para comparar rendimientos</p>
           </div>
           <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min="0"
-              step="0.1"
+            <NumericInput
               value={inflationRate}
-              onChange={e => setInflationRate(parseFloat(e.target.value) || 0)}
-              className="w-20 text-sm font-mono border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500 text-right"
+              onChange={setInflationRate}
+              variant="decimal"
+              min={0}
+              placeholder="0"
+              className="w-20 text-sm border-slate-200 focus:ring-violet-500"
             />
             <span className="text-sm text-slate-500 font-medium">% mensual</span>
           </div>

@@ -3,13 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { useExchangeRate } from '../context/ExchangeRateContext';
-import CardDashboardModal from './cards/CardDashboardModal';
 import ExchangeRateBadge from './ui/ExchangeRateBadge';
 import MonthNavigator from './ui/MonthNavigator';
 
 type ViewMode = 'combinado' | 'separado';
+type ModalTab = 'summary' | 'import' | 'cards';
 
-export default function Dashboard() {
+interface Props {
+  onOpenModal: (tab: ModalTab) => void;
+}
+
+export default function Dashboard({ onOpenModal }: Props) {
   const { monthlyExpenses, monthlyIncomes, selectedMonth, setSelectedMonth } = useFinance();
 
   // Al entrar al dashboard, sincronizar al mes en curso
@@ -25,8 +29,7 @@ export default function Dashboard() {
   const expenses = monthlyExpenses;
   const incomes = monthlyIncomes;
   const { blue } = useExchangeRate();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [viewMode, setViewMode]   = useState<ViewMode>('combinado');
+  const [viewMode, setViewMode] = useState<ViewMode>('combinado');
 
   // ── Gastos ────────────────────────────────────────────
   const expensesARS     = expenses.filter(e => e.currency !== 'USD');
@@ -78,10 +81,10 @@ export default function Dashboard() {
             <MonthNavigator />
             <ExchangeRateBadge />
             <button
-              onClick={() => setModalOpen(true)}
+              onClick={() => onOpenModal('cards')}
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
             >
-              💳 Tarjetas
+              💳 Mis tarjetas
             </button>
           </div>
         </div>
@@ -280,7 +283,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      <CardDashboardModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
     </>
   );
 }

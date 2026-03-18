@@ -18,4 +18,8 @@ export interface ImportSummary {
     totalARS: number;
     totalUSD: number;
     items: ParsedExpense[];
+    /** Fecha real de cierre extraída del encabezado del resumen ("YYYY-MM-DD") */
+    closingDate?: string;
+    /** Fecha de vencimiento extraída del encabezado del resumen ("YYYY-MM-DD") */
+    dueDate?: string;
 }

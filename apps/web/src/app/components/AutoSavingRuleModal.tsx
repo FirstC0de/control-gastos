@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import type { AutoSavingRule } from '@controlados/shared';
+import NumericInput from './ui/NumericInput';
 
 interface Props {
   isOpen: boolean;
@@ -131,15 +132,19 @@ export default function AutoSavingRuleModal({ isOpen, onClose, editingRule }: Pr
           <div>
             <label className={labelClass}>Porcentaje a ahorrar</label>
             <div className="flex gap-2 items-center">
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={percentage}
-                onChange={e => setPercentage(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
-                className="w-24 px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono tabular-nums"
-              />
-              <span className="text-sm text-slate-500 font-medium">%</span>
+              <div className="flex items-center gap-2">
+                <NumericInput
+                  value={percentage}
+                  onChange={val => setPercentage(Math.min(100, Math.max(1, Math.round(val) || 1)))}
+                  variant="integer"
+                  min={1}
+                  max={100}
+                  stepper
+                  stepAmount={5}
+                  className="w-20 text-sm border-slate-300"
+                />
+                <span className="text-sm text-slate-500 font-medium">%</span>
+              </div>
               <div className="flex gap-1 ml-auto flex-wrap justify-end">
                 {PERCENTAGE_PRESETS.map(p => (
                   <button

@@ -187,7 +187,24 @@ export const parseBBVA = (text: string): ImportSummary => {
     console.log('[BBVA] Items finales:', filtered.map(i => ({ desc: i.description, amount: i.amount })));
     console.log('[BBVA] Total ARS:', filtered.filter(i => i.currency === 'ARS').reduce((s, i) => s + i.amount, 0));
 
+    // Extraer fechas de cierre y vencimiento del encabezado
+    // Formato real BBVA: línea con "CIERRE ACTUAL  VENCIMIENTO ACTUAL  ..."
+    // seguida de línea con "27-Mar-25  04-Abr-25  ..."
+    let closingDate: string | undefined;
+    let dueDate: string | undefined;
+    const datePattern = /(\d{2}-[A-Za-z]{3}-\d{2})/g;
+    for (let i = 0; i < lines.length; i++) {
+        if (/CIERRE\s+ACTUAL/i.test(lines[i])) {
+            // La línea siguiente contiene las fechas
+            const nextLine = lines[i + 1] ?? '';
+            const dates = [...nextLine.matchAll(datePattern)].map(m => m[1]);
+            if (dates[0]) closingDate = parseBBVADate(dates[0]);
+            if (dates[1]) dueDate = parseBBVADate(dates[1]);
+            break;
+        }
+    }
+
     const totalARS = filtered.filter(i => i.currency === 'ARS').reduce((s, i) => s + i.amount, 0);
     const totalUSD = filtered.filter(i => i.currency === 'USD').reduce((s, i) => s + i.amount, 0);
-    return { bank: 'BBVA', cardType: 'Visa', period, totalARS, totalUSD, items: filtered };
+    return { bank: 'BBVA', cardType: 'Visa', period, totalARS, totalUSD, items: filtered, closingDate, dueDate };
 };
