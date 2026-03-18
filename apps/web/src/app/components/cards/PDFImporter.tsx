@@ -311,7 +311,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                 <>
                                     <div className="text-5xl mb-3">📄</div>
                                     <p className="text-sm font-medium text-slate-700">Arrastrá el PDF acá o hacé click para seleccionar</p>
-                                    <p className="text-xs text-slate-400 mt-2">Galicia · BBVA · Santander</p>
+                                    <p className="text-xs text-slate-400 mt-2">Galicia · BBVA · Santander · ICBC</p>
                                 </>
                             )}
                             <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
@@ -328,7 +328,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                         <div className="bg-slate-50 rounded-xl px-4 py-3">
                             <p className={labelClass}>Bancos soportados</p>
                             <div className="flex flex-wrap gap-2">
-                                {['Galicia', 'BBVA', 'Santander'].map(b => (
+                                {['Galicia', 'BBVA', 'Santander', 'ICBC'].map(b => (
                                     <span key={b} className="px-2 py-1 bg-white border border-slate-200 text-xs text-slate-600 rounded-lg">{b}</span>
                                 ))}
                             </div>
