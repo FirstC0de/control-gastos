@@ -86,7 +86,7 @@ export const parseICBC = (text: string): ImportSummary => {
                 installments,
                 currentInstallment,
                 installmentAmount: amount,
-                ...(comprobante ? { comprobante } : {}),
+                comprobante,
                 currency: isUSD ? 'USD' : 'ARS',
                 selected: true,
             });
