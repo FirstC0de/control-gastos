@@ -6,6 +6,7 @@ import CategorySelector from './categories/CategorySelector';
 import CategoriesModal from './categories/CategoriesModal';
 import RecurringToggle from './ui/RecurringToggle';
 import { Currency } from '@controlados/shared';
+import NumericInput from './ui/NumericInput';
 
 const TagIcon = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -13,7 +14,12 @@ const TagIcon = () => (
   </svg>
 );
 
-export default function ExpenseForm() {
+interface Props {
+  onOpenImport?: () => void;
+  onOpenCards?: () => void;
+}
+
+export default function ExpenseForm({ onOpenImport, onOpenCards }: Props) {
   const { addExpense, cards, selectedMonth } = useFinance();
   const [showCatModal, setShowCatModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,10 +36,12 @@ export default function ExpenseForm() {
 
   // Reset date when month changes
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      date: `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`,
-    }));
+    const today = new Date();
+    const isCurrentMonth = selectedMonth.year === today.getFullYear() && selectedMonth.month === today.getMonth();
+    const newDate = isCurrentMonth
+      ? today.toISOString().split('T')[0]
+      : `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
+    setFormData(prev => ({ ...prev, date: newDate }));
   }, [selectedMonth]);
   const [loading, setLoading] = useState(false);
 
@@ -61,9 +69,14 @@ export default function ExpenseForm() {
         recurringDay:       formData.recurring ? formData.recurringDay : undefined,
         monthYear,
       });
+      const today = new Date();
+      const isCurrentMonth = selectedMonth.year === today.getFullYear() && selectedMonth.month === today.getMonth();
+      const resetDate = isCurrentMonth
+        ? today.toISOString().split('T')[0]
+        : `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`;
       setFormData({
         description: '', amount: 0,
-        date: `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}-01`,
+        date: resetDate,
         categoryId: null, cardId: null, installments: 1,
         currency: 'ARS', recurring: false, recurringDay: 1,
       });
@@ -86,6 +99,16 @@ export default function ExpenseForm() {
             <span className="hidden sm:inline text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
               {formData.installments} cuotas de {formData.currency === 'USD' ? 'U$D' : '$'}{installmentAmount.toFixed(2)}
             </span>
+          )}
+          {onOpenImport && (
+            <button
+              type="button"
+              onClick={onOpenImport}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+            >
+              <span>📄</span>
+              <span className="hidden sm:inline">Importar resumen</span>
+            </button>
           )}
           <button
             type="button"
@@ -118,9 +141,15 @@ export default function ExpenseForm() {
               <option value="ARS">$</option>
               <option value="USD">U$D</option>
             </select>
-            <input type="number" value={formData.amount || ''}
-              onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-              className={inputClass} step="0.01" min="0" placeholder="0.00" required />
+            <NumericInput
+              value={formData.amount}
+              onChange={val => setFormData({ ...formData, amount: val })}
+              variant="currency"
+              min={0}
+              placeholder="0"
+              required
+              className={inputClass}
+            />
           </div>
         </div>
 
@@ -158,6 +187,15 @@ export default function ExpenseForm() {
               <option key={card.id} value={card.id}>{card.name}</option>
             ))}
           </select>
+          {cards.length === 0 && (
+            <p className="mt-1.5 text-xs text-slate-400">
+              ¿Tenés tarjetas?{' '}
+              <button type="button" onClick={onOpenCards}
+                className="font-medium text-indigo-500 hover:text-indigo-700 underline underline-offset-2 transition-colors">
+                Agregar una tarjeta →
+              </button>
+            </p>
+          )}
         </div>
 
         {/* Categoría */}
@@ -175,9 +213,11 @@ export default function ExpenseForm() {
           <div>
             <label className={labelClass}>Día del mes</label>
             <input
-              type="number" min={1} max={28}
+              type="text" inputMode="numeric" pattern="[0-9]*"
               value={formData.recurringDay ?? 1}
-              onChange={e => setFormData({ ...formData, recurringDay: Math.min(28, Math.max(1, Number(e.target.value))) })}
+              onChange={e => setFormData({ ...formData, recurringDay: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })}
+              onFocus={e => e.target.select()}
+              style={{ fontSize: '16px' }}
               className={inputClass}
               placeholder="1"
             />

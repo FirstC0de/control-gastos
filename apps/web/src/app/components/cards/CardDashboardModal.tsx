@@ -16,10 +16,11 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: Tab;
 }
 
-export default function CardDashboardModal({ isOpen, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('summary');
+export default function CardDashboardModal({ isOpen, onClose, initialTab = 'summary' }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   if (!isOpen) return null;
 
@@ -72,7 +73,7 @@ export default function CardDashboardModal({ isOpen, onClose }: Props) {
         <div className="p-6">
           {activeTab === 'summary' && <CardSummaryPDF />}
           {activeTab === 'import'  && <PDFImporter onClose={onClose} />}
-          {activeTab === 'cards'   && <CardManager />}
+          {activeTab === 'cards'   && <CardManager onGoToImport={() => setActiveTab('import')} />}
         </div>
       </div>
     </div>

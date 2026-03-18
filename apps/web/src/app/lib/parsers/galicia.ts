@@ -6,6 +6,43 @@ const formatGaliciaDate = (raw: string): string => {
     return `20${year}-${month}-${day}`;
 };
 
+const galiciaMonthMap: Record<string, string> = {
+    ene: '01', feb: '02', mar: '03', abr: '04', may: '05', jun: '06',
+    jul: '07', ago: '08', sep: '09', oct: '10', nov: '11', dic: '12',
+};
+
+const parseGaliciaShortDate = (raw: string): string | undefined => {
+    const m = raw.match(/^(\d{2})-([A-Za-z]{3})-(\d{2})$/);
+    if (!m) return undefined;
+    const month = galiciaMonthMap[m[2].toLowerCase()];
+    if (!month) return undefined;
+    return `20${m[3]}-${month}-${m[1]}`;
+};
+
+/** Formato real Galicia — "Ciclo de facturación":
+ *  Línea de fechas: "29-Ene-26  06-Feb-26  26-Feb-26  06-Mar-26  26-Mar-26  06-Abr-26"
+ *  Línea de etiquetas: "Cierre anterior  Vencimiento anterior  Cierre actual  Vencimiento actual  ..."
+ *  closingDate = 3ª fecha (índice 2) = Cierre actual
+ *  dueDate     = 4ª fecha (índice 3) = Vencimiento actual
+ *
+ *  El timeline visual hace que pdf.js pueda generar líneas intermedias entre fechas y etiquetas,
+ *  por eso buscamos directamente una línea con 4+ tokens DD-Mmm-YY.
+ */
+const extractGaliciaDates = (lines: string[]): { closingDate?: string; dueDate?: string } => {
+    const dateToken = /\d{2}-[A-Za-z]{3}-\d{2}/g;
+
+    for (const line of lines) {
+        const dates = [...line.matchAll(dateToken)].map(m => m[0]);
+        if (dates.length >= 4) {
+            return {
+                closingDate: parseGaliciaShortDate(dates[2]),
+                dueDate:     parseGaliciaShortDate(dates[3]),
+            };
+        }
+    }
+    return {};
+};
+
 // Formato: DD-MM-YY  *  DESCRIPCION  [CC/TT]  COMPROBANTE  MONTO  [USD]
 export const parseGaliciaVisa = (text: string): ImportSummary => {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
@@ -70,7 +107,8 @@ export const parseGaliciaVisa = (text: string): ImportSummary => {
 
     const totalARS = items.filter(i => i.currency === 'ARS').reduce((s, i) => s + i.amount, 0);
     const totalUSD = items.filter(i => i.currency === 'USD').reduce((s, i) => s + i.amount, 0);
-    return { bank: 'Banco Galicia', cardType: 'Visa', period, totalARS, totalUSD, items };
+    const { closingDate, dueDate } = extractGaliciaDates(lines);
+    return { bank: 'Banco Galicia', cardType: 'Visa', period, totalARS, totalUSD, items, closingDate, dueDate };
 };
 
 // Dos secciones: "DETALLE DEL CONSUMO" (contado) y "CUOTA DEL MES" (cuotas)
@@ -156,5 +194,6 @@ export const parseGaliciaMaster = (text: string): ImportSummary => {
 
     const totalARS = items.filter(i => i.currency === 'ARS').reduce((s, i) => s + i.amount, 0);
     const totalUSD = items.filter(i => i.currency === 'USD').reduce((s, i) => s + i.amount, 0);
-    return { bank: 'Banco Galicia', cardType: 'Mastercard', period, totalARS, totalUSD, items };
+    const { closingDate, dueDate } = extractGaliciaDates(lines);
+    return { bank: 'Banco Galicia', cardType: 'Mastercard', period, totalARS, totalUSD, items, closingDate, dueDate };
 };

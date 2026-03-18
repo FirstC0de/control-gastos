@@ -8,7 +8,11 @@ import { toast } from 'sonner';
 
 const CARD_COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 
-export default function CardManager() {
+interface Props {
+  onGoToImport?: () => void;
+}
+
+export default function CardManager({ onGoToImport }: Props) {
   const { cards, addCard, updateCard, deleteCard } = useFinance();
 
   const [editing, setEditing]   = useState<Card | null>(null);
@@ -52,9 +56,17 @@ export default function CardManager() {
   return (
     <>
       <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h2 className="text-base font-semibold text-slate-900 mb-5">
-          {editing ? 'Editar tarjeta' : 'Nueva tarjeta'}
-        </h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold text-slate-900">
+            {editing ? 'Editar tarjeta' : 'Nueva tarjeta'}
+          </h2>
+          {onGoToImport && (
+            <button type="button" onClick={onGoToImport}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+              <span>📄</span> Importar resumen
+            </button>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -66,21 +78,30 @@ export default function CardManager() {
             </div>
             <div>
               <label className={labelClass}>Últimos 4 dígitos</label>
-              <input type="text" value={form.lastFour || ''}
-                onChange={e => setForm({ ...form, lastFour: e.target.value.slice(0, 4) })}
+              <input type="text" inputMode="numeric" pattern="[0-9]*"
+                value={form.lastFour || ''}
+                onChange={e => setForm({ ...form, lastFour: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                onFocus={e => e.target.select()}
+                style={{ fontSize: '16px' }}
                 className={inputClass} placeholder="1234" maxLength={4} />
             </div>
             <div>
               <label className={labelClass}>Día de cierre</label>
-              <input type="number" value={form.closingDay}
-                onChange={e => setForm({ ...form, closingDay: Number(e.target.value) })}
-                className={inputClass} min={1} max={31} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*"
+                value={form.closingDay || ''}
+                onChange={e => setForm({ ...form, closingDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })}
+                onFocus={e => e.target.select()}
+                style={{ fontSize: '16px' }}
+                className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>Día de vencimiento</label>
-              <input type="number" value={form.dueDay}
-                onChange={e => setForm({ ...form, dueDay: Number(e.target.value) })}
-                className={inputClass} min={1} max={31} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*"
+                value={form.dueDay || ''}
+                onChange={e => setForm({ ...form, dueDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })}
+                onFocus={e => e.target.select()}
+                style={{ fontSize: '16px' }}
+                className={inputClass} />
             </div>
           </div>
 
@@ -139,6 +160,16 @@ export default function CardManager() {
                       {card.lastFour && `•••• ${card.lastFour} · `}
                       Cierre día {card.closingDay} · Vence día {card.dueDay}
                     </p>
+                    {card.closingHistory && card.closingHistory.length > 0 && (
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-xs text-slate-300">Últimos cierres:</span>
+                        {card.closingHistory.map((r, i) => (
+                          <span key={i} className="text-xs font-mono text-indigo-400">
+                            {new Date(r.closingDate + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-1">

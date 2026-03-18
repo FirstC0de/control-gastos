@@ -31,19 +31,41 @@ export const parseSantander = (text: string, cardType: 'Visa' | 'American Expres
     // El año base es el del cierre del resumen. Si no se encuentra, usamos hoy.
     let statementYear  = new Date().getFullYear();
     let statementMonth = new Date().getMonth() + 1; // 1-12
+    let closingDate: string | undefined;
+    let dueDate: string | undefined;
 
     for (const line of lines) {
         // Línea de cierre: "1854 LONGCHAMPS  CIERRE  26  Feb  26  VENCIMIENTO 09 Mar 26"
-        // El año aparece como 2 dígitos después del mes (ej: "Feb 26" = Feb 2026)
-        const cierreMatch = line.match(/CIERRE\s+\d{1,2}\s+([A-Za-z]+)\s+(\d{2})\s+VENCIMIENTO/i);
+        // Captura día, mes y año de cierre Y de vencimiento
+        const cierreMatch = line.match(
+            /CIERRE\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{2})\s+VENCIMIENTO\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{2})/i
+        );
         if (cierreMatch) {
-            const monthStr = cierreMatch[1].toLowerCase();
-            const monthNum = MONTH_MAP[monthStr];
-            if (monthNum) {
-                statementMonth = parseInt(monthNum);
-                statementYear  = 2000 + parseInt(cierreMatch[2]);
+            const [, cDay, cMonthStr, cYear2d, dDay, dMonthStr, dYear2d] = cierreMatch;
+            const cMonth = MONTH_MAP[cMonthStr.toLowerCase()];
+            const dMonth = MONTH_MAP[dMonthStr.toLowerCase()];
+            if (cMonth) {
+                statementMonth = parseInt(cMonth);
+                statementYear  = 2000 + parseInt(cYear2d);
+                closingDate = `${statementYear}-${cMonth}-${cDay.padStart(2, '0')}`;
                 period = line;
-                break; // con uno alcanza
+            }
+            if (dMonth) {
+                const dYear = 2000 + parseInt(dYear2d);
+                dueDate = `${dYear}-${dMonth}-${dDay.padStart(2, '0')}`;
+            }
+            break;
+        }
+        // Fallback: solo CIERRE sin vencimiento en la misma línea
+        const cierreOnly = line.match(/CIERRE\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{2})/i);
+        if (cierreOnly && !period) {
+            const [, cDay, cMonthStr, cYear2d] = cierreOnly;
+            const cMonth = MONTH_MAP[cMonthStr.toLowerCase()];
+            if (cMonth) {
+                statementMonth = parseInt(cMonth);
+                statementYear  = 2000 + parseInt(cYear2d);
+                closingDate = `${statementYear}-${cMonth}-${cDay.padStart(2, '0')}`;
+                period = line;
             }
         }
     }
@@ -189,5 +211,5 @@ export const parseSantander = (text: string, cardType: 'Visa' | 'American Expres
     items.forEach((it, i) => console.log(`  [${i}] "${it.description}" | date: ${it.date} | cuota: ${it.currentInstallment}/${it.installments}`));
     console.groupEnd();
 
-    return { bank: 'Santander', cardType, period, totalARS, totalUSD, items };
+    return { bank: 'Santander', cardType, period, totalARS, totalUSD, items, closingDate, dueDate };
 };

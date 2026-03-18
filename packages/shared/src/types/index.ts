@@ -17,13 +17,22 @@ export type Expense = {
   monthYear?: string; // "YYYY-MM" — mes al que pertenece el gasto en el dashboard
 };
 
+/** Registro de un cierre real extraído de un resumen PDF */
+export type ClosingRecord = {
+  closingDate: string;  // "YYYY-MM-DD" — fecha real de cierre según el PDF
+  dueDate?: string;     // "YYYY-MM-DD" — fecha de vencimiento correspondiente
+  source: 'pdf_import';
+};
+
 export type Card = {
   id: string;
   name: string;        // "Visa Galicia", "Mastercard HSBC"
   lastFour?: string;   // últimos 4 dígitos
   color: string;       // color identificador
-  closingDay: number;  // día de cierre (ej: 15)
-  dueDay: number;      // día de vencimiento (ej: 5)
+  closingDay: number;  // día de cierre configurado por el usuario (ej: 15)
+  dueDay: number;      // día de vencimiento configurado por el usuario (ej: 5)
+  /** Últimos cierres reales extraídos de PDFs (máx 3) */
+  closingHistory?: ClosingRecord[];
 };
 
 export type Income = {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import type { FixedTerm, Currency } from '@controlados/shared';
+import NumericInput from '../ui/NumericInput';
 
 type Props = {
   onClose: () => void;
@@ -19,11 +20,11 @@ export default function FixedTermModal({ onClose, fixedTerm }: Props) {
   const in30  = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
   const [institution, setInstitution] = useState(fixedTerm?.institution ?? '');
-  const [principal,   setPrincipal]   = useState(fixedTerm?.principal?.toString() ?? '');
+  const [principal,   setPrincipal]   = useState(fixedTerm?.principal ?? 0);
   const [currency,    setCurrency]    = useState<Currency>(fixedTerm?.currency ?? 'ARS');
   const [startDate,   setStartDate]   = useState(fixedTerm?.startDate ?? today);
   const [endDate,     setEndDate]     = useState(fixedTerm?.endDate ?? in30);
-  const [rate,        setRate]        = useState(fixedTerm?.rate?.toString() ?? '');
+  const [rate,        setRate]        = useState(fixedTerm?.rate ?? 0);
   const [renew,       setRenew]       = useState(fixedTerm?.renewOnExpiry ?? false);
   const [notes,       setNotes]       = useState(fixedTerm?.notes ?? '');
   const [loading,     setLoading]     = useState(false);
@@ -36,8 +37,8 @@ export default function FixedTermModal({ onClose, fixedTerm }: Props) {
   }, [onClose]);
 
   // Preview calculations
-  const p = parseFloat(principal) || 0;
-  const r = parseFloat(rate) || 0;
+  const p = principal;
+  const r = rate;
   const start = new Date(startDate + 'T12:00:00');
   const end   = new Date(endDate   + 'T12:00:00');
   const daysTotal   = Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
@@ -46,22 +47,20 @@ export default function FixedTermModal({ onClose, fixedTerm }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const pval = parseFloat(principal.replace(',', '.'));
-    const rval = parseFloat(rate.replace(',', '.'));
     if (!institution.trim()) { setError('La institución es obligatoria'); return; }
-    if (isNaN(pval) || pval <= 0) { setError('El monto debe ser mayor a 0'); return; }
-    if (isNaN(rval) || rval <= 0) { setError('La tasa debe ser mayor a 0'); return; }
+    if (principal <= 0)      { setError('El monto debe ser mayor a 0'); return; }
+    if (rate <= 0)           { setError('La tasa debe ser mayor a 0'); return; }
     if (endDate <= startDate)     { setError('La fecha de fin debe ser posterior a la de inicio'); return; }
 
     setLoading(true);
     try {
       const data: Omit<FixedTerm, 'id'> = {
         institution: institution.trim(),
-        principal: pval,
+        principal,
         currency,
         startDate,
         endDate,
-        rate: rval,
+        rate,
         renewOnExpiry: renew,
         createdAt: fixedTerm?.createdAt ?? new Date().toISOString().slice(0, 10),
         ...(notes.trim() && { notes: notes.trim() }),
@@ -126,13 +125,8 @@ export default function FixedTermModal({ onClose, fixedTerm }: Props) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Capital</label>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={principal}
-                  onChange={e => setPrincipal(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono placeholder:text-slate-300"
-                />
+                <NumericInput value={principal} onChange={setPrincipal} variant="currency" min={0} placeholder="0"
+                  className="text-sm border-slate-200 focus:ring-blue-500" />
               </div>
             </div>
 
@@ -153,13 +147,8 @@ export default function FixedTermModal({ onClose, fixedTerm }: Props) {
             {/* TNA */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">TNA (%)</label>
-              <input
-                type="number" min="0" step="0.01"
-                value={rate}
-                onChange={e => setRate(e.target.value)}
-                placeholder="Ej: 118.5"
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono placeholder:text-slate-300"
-              />
+              <NumericInput value={rate} onChange={setRate} variant="decimal" min={0} placeholder="Ej: 118,5"
+                className="text-sm border-slate-200 focus:ring-blue-500" />
             </div>
 
             {/* Preview */}
