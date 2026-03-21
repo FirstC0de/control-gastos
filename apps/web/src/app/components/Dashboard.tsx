@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useFinance } from '../context/FinanceContext';
 import { useExchangeRate } from '../context/ExchangeRateContext';
 import ExchangeRateBadge from './ui/ExchangeRateBadge';
@@ -118,7 +119,7 @@ export default function Dashboard({ onOpenModal }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
             {/* Ingresos */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/ingresos" className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group cursor-pointer block">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Ingresos</p>
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
@@ -127,21 +128,32 @@ export default function Dashboard({ onOpenModal }: Props) {
                   </svg>
                 </div>
               </div>
-              <p className="text-3xl font-bold text-slate-900 tracking-tight font-mono">
-                ${fmt(totalCombinado_inc)}
-              </p>
-              {totalUSD_inc > 0 && (
-                <div className="mt-2 space-y-0.5">
-                  <p className="text-xs text-slate-400">${fmt(totalARS_inc)} ARS</p>
-                  <p className="text-xs text-slate-400">
-                    + U$D {fmtUSD(totalUSD_inc)} × ${fmt(blue)} = ${fmt(totalUSD_inc_conv)}
+              {incomes.length === 0 ? (
+                <div className="py-4 text-center">
+                  <p className="text-2xl mb-1">💰</p>
+                  <p className="text-sm font-medium text-slate-500">No hay ingresos registrados</p>
+                  <p className="text-xs text-slate-400 mt-1">¡Agregá tu primer ingreso!
                   </p>
                 </div>
+              ) : (
+                <>
+                  <p className="text-3xl font-bold text-slate-900 tracking-tight font-mono">
+                    ${fmt(totalCombinado_inc)}
+                  </p>
+                  {totalUSD_inc > 0 && (
+                    <div className="mt-2 space-y-0.5">
+                      <p className="text-xs text-slate-400">${fmt(totalARS_inc)} ARS</p>
+                      <p className="text-xs text-slate-400">
+                        + U$D {fmtUSD(totalUSD_inc)} × ${fmt(blue)} = ${fmt(totalUSD_inc_conv)}
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-3 h-1 rounded-full bg-emerald-100">
+                    <div className="h-1 rounded-full bg-emerald-500" style={{ width: '100%' }} />
+                  </div>
+                </>
               )}
-              <div className="mt-3 h-1 rounded-full bg-emerald-100">
-                <div className="h-1 rounded-full bg-emerald-500" style={{ width: totalCombinado_inc > 0 ? '100%' : '0%' }} />
-              </div>
-            </div>
+            </Link>
 
             {/* Gastos */}
             <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow group">
@@ -210,10 +222,10 @@ export default function Dashboard({ onOpenModal }: Props) {
                 <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Pesos argentinos</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22">
+                <Link href="/ingresos" className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22 hover:border-emerald-200 hover:shadow-sm transition-all group">
                   <p className="text-xs font-medium text-slate-400 mb-1">Ingresos ARS</p>
                   <p className="text-2xl font-bold font-mono tabular-nums text-emerald-600">${fmt(totalARS_inc)}</p>
-                </div>
+                </Link>
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Gastos ARS</p>
                   <p className="text-2xl font-bold font-mono tabular-nums text-rose-600">${fmt(totalARS_exp)}</p>
@@ -234,13 +246,13 @@ export default function Dashboard({ onOpenModal }: Props) {
                 <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Dólares</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl border border-emerald-200 p-5 flex flex-col justify-between min-h-22">
+                <Link href="/ingresos" className="bg-white rounded-2xl border border-emerald-200 p-5 flex flex-col justify-between min-h-22 hover:shadow-sm transition-all">
                   <p className="text-xs font-medium text-slate-400 mb-1">Ingresos USD</p>
                   <p className="text-2xl font-bold font-mono tabular-nums text-emerald-600">U$D {fmtUSD(totalUSD_inc)}</p>
                   {blue > 0 && totalUSD_inc > 0 && (
                     <p className="text-xs text-slate-400 font-mono tabular-nums mt-1">≈ ${fmt(totalUSD_inc_conv)} ARS</p>
                   )}
-                </div>
+                </Link>
                 <div className="bg-white rounded-2xl border border-rose-200 p-5 flex flex-col justify-between min-h-22">
                   <p className="text-xs font-medium text-slate-400 mb-1">Gastos USD</p>
                   <p className="text-2xl font-bold font-mono tabular-nums text-rose-600">U$D {fmtUSD(totalUSD_exp)}</p>

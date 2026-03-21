@@ -3,14 +3,18 @@
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { useFinance } from '../../context/FinanceContext';
-import { Expense } from '@controlados/shared';
+import { Expense, Card } from '@controlados/shared';
 import { parseStatement, ImportSummary } from '../../lib/parsers';
 import CategorySelector from '../categories/CategorySelector';
 
+const CARD_COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 
+const emptyCardForm = (): Omit<Card, 'id'> => ({
+    name: '', color: '#6366f1', lastFour: '', closingDay: 15, dueDay: 5,
+});
 
 export default function PDFImporter({ onClose }: { onClose?: () => void }) {
-    const { addExpense, cards, expenses, selectedMonth, updateCard } = useFinance();
+    const { addExpense, addCard, cards, expenses, selectedMonth, updateCard } = useFinance();
 
     const [step, setStep] = useState<'upload' | 'review' | 'importing' | 'done'>('upload');
     const [summary, setSummary] = useState<ImportSummary | null>(null);
@@ -24,6 +28,28 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
     const [bulkCategory, setBulkCategory] = useState<string | null>(null);
     const [updateCardDates, setUpdateCardDates] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+
+    // ── Mini-modal para agregar tarjeta ───────────────────
+    const [showAddCard, setShowAddCard] = useState(false);
+    const [cardForm, setCardForm] = useState<Omit<Card, 'id'>>(emptyCardForm());
+    const [savingCard, setSavingCard] = useState(false);
+
+    const handleAddCard = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!cardForm.name) return;
+        setSavingCard(true);
+        try {
+            const newCard = await addCard(cardForm);
+            setSelectedCard(newCard.id);
+            setCardForm(emptyCardForm());
+            setShowAddCard(false);
+            toast.success(`Tarjeta "${newCard.name}" creada`);
+        } catch {
+            toast.error('Error al crear la tarjeta');
+        } finally {
+            setSavingCard(false);
+        }
+    };
 
     const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow";
     const labelClass = "block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5";
@@ -76,7 +102,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
             setLoadingMsg('Analizando resumen...');
             const parsed = parseStatement(text);
 
-            if (!parsed) throw new Error('No se reconoció el formato del resumen. Bancos soportados: Galicia, BBVA y Santander.');
+            if (!parsed) throw new Error('No se reconoció el formato del resumen. Bancos soportados: Galicia, BBVA, Santander, ICBC y Provincia.');
             if (parsed.items.length === 0) throw new Error('No se encontraron transacciones en el resumen.');
 
             const importAbsMonth = selectedMonth.year * 12 + selectedMonth.month;
@@ -265,6 +291,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
 
     // ── Render ────────────────────────────────────────────
     return (
+        <>
         <div className="bg-white rounded-2xl border border-slate-200">
 
             {/* Header */}
@@ -287,10 +314,27 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                     <div className="space-y-5">
                         <div>
                             <label className={labelClass}>Tarjeta destino</label>
-                            <select value={selectedCard} onChange={e => setSelectedCard(e.target.value)} className={inputClass}>
-                                <option value="">Sin tarjeta específica</option>
-                                {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
+                            {cards.length === 0 ? (
+                                <button type="button" onClick={() => setShowAddCard(true)}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-indigo-600 border-2 border-dashed border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-xl transition-colors">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                    Agregar tarjeta
+                                </button>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <select value={selectedCard} onChange={e => setSelectedCard(e.target.value)} className={inputClass}>
+                                        <option value="">Sin tarjeta específica</option>
+                                        {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    <button type="button" onClick={() => setShowAddCard(true)}
+                                        title="Agregar tarjeta"
+                                        className="shrink-0 px-3 py-2 text-sm text-indigo-600 border border-indigo-200 hover:bg-indigo-50 rounded-xl transition-colors">
+                                        +
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div
@@ -311,7 +355,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                                 <>
                                     <div className="text-5xl mb-3">📄</div>
                                     <p className="text-sm font-medium text-slate-700">Arrastrá el PDF acá o hacé click para seleccionar</p>
-                                    <p className="text-xs text-slate-400 mt-2">Galicia · BBVA · Santander · ICBC</p>
+                                    <p className="text-xs text-slate-400 mt-2">Galicia · BBVA · Santander · ICBC · Provincia</p>
                                 </>
                             )}
                             <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
@@ -328,7 +372,7 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                         <div className="bg-slate-50 rounded-xl px-4 py-3">
                             <p className={labelClass}>Bancos soportados</p>
                             <div className="flex flex-wrap gap-2">
-                                {['Galicia', 'BBVA', 'Santander', 'ICBC'].map(b => (
+                                {['Galicia', 'BBVA', 'Santander', 'ICBC', 'Provincia'].map(b => (
                                     <span key={b} className="px-2 py-1 bg-white border border-slate-200 text-xs text-slate-600 rounded-lg">{b}</span>
                                 ))}
                             </div>
@@ -369,11 +413,28 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
                             </div>
                             <div className="border-t border-indigo-100 pt-3">
                                 <label className="block text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1.5">Asociar a tarjeta</label>
-                                <select value={selectedCard} onChange={e => setSelectedCard(e.target.value)}
-                                    className="w-full px-3 py-2 text-sm border border-indigo-200 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                    <option value="">Sin tarjeta específica</option>
-                                    {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
+                                {cards.length === 0 ? (
+                                    <button type="button" onClick={() => setShowAddCard(true)}
+                                        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium text-indigo-600 border-2 border-dashed border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/60 rounded-xl transition-colors">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                        </svg>
+                                        Agregar tarjeta
+                                    </button>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <select value={selectedCard} onChange={e => setSelectedCard(e.target.value)}
+                                            className="flex-1 px-3 py-2 text-sm border border-indigo-200 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            <option value="">Sin tarjeta específica</option>
+                                            {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                        <button type="button" onClick={() => setShowAddCard(true)}
+                                            title="Agregar tarjeta"
+                                            className="shrink-0 px-3 py-2 text-sm text-indigo-600 border border-indigo-200 bg-white hover:bg-indigo-50 rounded-xl transition-colors">
+                                            +
+                                        </button>
+                                    </div>
+                                )}
                                 {!selectedCard && (
                                     <p className="text-xs text-amber-600 mt-1.5">⚠️ Sin tarjeta seleccionada, los gastos no aparecerán en el resumen por tarjeta.</p>
                                 )}
@@ -628,5 +689,92 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
 
             </div>
         </div>
+
+        {/* ── Modal: Agregar tarjeta ──────────────────────────────────── */}
+        {showAddCard && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-slate-200">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                        <h3 className="text-base font-bold text-slate-900">Nueva tarjeta</h3>
+                        <button onClick={() => setShowAddCard(false)}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <form onSubmit={handleAddCard} className="p-5 space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="col-span-2">
+                                <label className={labelClass}>Nombre *</label>
+                                <input type="text" value={cardForm.name} autoFocus required
+                                    onChange={e => setCardForm({ ...cardForm, name: e.target.value })}
+                                    className={inputClass} placeholder="Visa Galicia" />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Últimos 4 dígitos</label>
+                                <input type="text" inputMode="numeric" value={cardForm.lastFour || ''}
+                                    onChange={e => setCardForm({ ...cardForm, lastFour: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                                    onFocus={e => e.target.select()}
+                                    style={{ fontSize: '16px' }}
+                                    className={inputClass} placeholder="1234" maxLength={4} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Día cierre</label>
+                                <input type="text" inputMode="numeric" value={cardForm.closingDay || ''}
+                                    onChange={e => setCardForm({ ...cardForm, closingDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })}
+                                    onFocus={e => e.target.select()}
+                                    style={{ fontSize: '16px' }}
+                                    className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Día vencimiento</label>
+                                <input type="text" inputMode="numeric" value={cardForm.dueDay || ''}
+                                    onChange={e => setCardForm({ ...cardForm, dueDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })}
+                                    onFocus={e => e.target.select()}
+                                    style={{ fontSize: '16px' }}
+                                    className={inputClass} />
+                            </div>
+                        </div>
+
+                        {/* Color */}
+                        <div>
+                            <label className={labelClass}>Color</label>
+                            <div className="flex gap-2">
+                                {CARD_COLORS.map(color => (
+                                    <button key={color} type="button"
+                                        onClick={() => setCardForm({ ...cardForm, color })}
+                                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
+                                            cardForm.color === color ? 'border-slate-800 scale-110' : 'border-transparent'
+                                        }`}
+                                        style={{ backgroundColor: color }} />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Preview */}
+                        <div className="rounded-xl px-4 py-3 text-white flex justify-between items-center"
+                            style={{ background: `linear-gradient(135deg, ${cardForm.color}, ${cardForm.color}99)` }}>
+                            <p className="text-sm font-semibold">{cardForm.name || 'Nombre tarjeta'}</p>
+                            {cardForm.lastFour && (
+                                <p className="text-xs font-mono opacity-80">•••• {cardForm.lastFour}</p>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                            <button type="button" onClick={() => setShowAddCard(false)}
+                                className="flex-1 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                                Cancelar
+                            </button>
+                            <button type="submit" disabled={savingCard || !cardForm.name}
+                                className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 transition-colors">
+                                {savingCard ? 'Guardando...' : 'Crear tarjeta'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

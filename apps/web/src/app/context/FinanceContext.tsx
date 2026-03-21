@@ -225,9 +225,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   }, [incomes, selectedMonth]);
 
   // CRUD de tarjetas
-  const addCard = async (c: Omit<Card, 'id'>) => {
+  const addCard = async (c: Omit<Card, 'id'>): Promise<Card> => {
     const newCard = await apiCreateCard(c);
     setCards(prev => [...prev, newCard]);
+    return newCard;
   };
 
   const updateCard = async (id: string, updates: Partial<Card>) => {

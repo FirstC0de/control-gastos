@@ -5,9 +5,11 @@ import { parseGaliciaVisa, parseGaliciaMaster } from './galicia';
 import { parseSantander } from './santander';
 import { parseBBVA } from './bbva';
 import { parseICBC } from './icbc';
+import { parseProvincia } from './provincia';
 
-export const detectBank = (text: string): 'galicia-visa' | 'galicia-master' | 'santander' | 'bbva' | 'icbc' | 'unknown' => {
+export const detectBank = (text: string): 'galicia-visa' | 'galicia-master' | 'santander' | 'bbva' | 'icbc' | 'provincia' | 'unknown' => {
     const t = text.toLowerCase();
+    if (t.includes('banco provincia')) return 'provincia';
     if (t.includes('santander')) return 'santander';
     if (t.includes('bbva')) return 'bbva';
     if (t.includes('icbc')) return 'icbc';
@@ -29,8 +31,9 @@ export const parseStatement = (text: string): ImportSummary | null => {
             const cardType = /american express|amex/i.test(text) ? 'American Express' : 'Visa';
             return parseSantander(text, cardType);
         }
-        case 'bbva': return parseBBVA(text);
-        case 'icbc': return parseICBC(text);
+        case 'bbva':      return parseBBVA(text);
+        case 'icbc':      return parseICBC(text);
+        case 'provincia': return parseProvincia(text);
         default: return null;
     }
 };

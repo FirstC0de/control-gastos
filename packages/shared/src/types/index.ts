@@ -264,7 +264,7 @@ export type FinanceContextType = {
   copyBudgetsFromPreviousMonth: () => Promise<number>;
 
   cards: Card[];
-  addCard: (card: Omit<Card, 'id'>) => Promise<void>;
+  addCard: (card: Omit<Card, 'id'>) => Promise<Card>;
   updateCard: (id: string, updates: Partial<Card>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
   getInstallmentSummary: (year: number, month: number, cardId?: string | 'all') => {
