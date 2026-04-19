@@ -19,6 +19,23 @@ interface Props {
   onOpenCards?: () => void;
 }
 
+/** Calcula el mes de cobro (vencimiento) en base al día de cierre de la tarjeta.
+ *  Antes del cierre → entra al resumen actual → se cobra el mes siguiente.
+ *  Después del cierre → entra al resumen siguiente → se cobra en 2 meses. */
+function getCardBillingMonthYear(expenseDateStr: string, closingDay: number): string {
+  const [year, month, day] = expenseDateStr.split('-').map(Number);
+  if (day >= closingDay) {
+    // Pasó el cierre: entra al resumen del mes siguiente → vence en mes+2
+    const next = new Date(year, month + 1, 1);
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+  }
+  // Antes del cierre: entra al resumen de este mes → vence el mes siguiente
+  const next = new Date(year, month, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+}
+
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
 export default function ExpenseForm({ onOpenImport, onOpenCards }: Props) {
   const { addExpense, cards, selectedMonth } = useFinance();
   const [showCatModal, setShowCatModal] = useState(false);
@@ -49,12 +66,21 @@ export default function ExpenseForm({ onOpenImport, onOpenCards }: Props) {
     ? formData.amount / formData.installments
     : formData.amount;
 
+  // Si hay tarjeta seleccionada, calculamos en qué mes cae el gasto según el cierre
+  const selectedCard = cards.find(c => c.id === formData.cardId);
+  const billingMonthYear = (() => {
+    if (selectedCard && !formData.recurring) {
+      return getCardBillingMonthYear(formData.date, selectedCard.closingDay);
+    }
+    return `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}`;
+  })();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description || formData.amount <= 0) return;
     setLoading(true);
     try {
-      const monthYear = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}`;
+      const monthYear = billingMonthYear;
       await addExpense({
         description:        formData.description,
         amount:             formData.amount,
@@ -196,6 +222,21 @@ export default function ExpenseForm({ onOpenImport, onOpenCards }: Props) {
               </button>
             </p>
           )}
+          {selectedCard && !formData.recurring && (() => {
+            const [yStr, mStr] = billingMonthYear.split('-');
+            const monthName = MONTH_NAMES[parseInt(mStr) - 1];
+            const expenseDay = parseInt(formData.date.split('-')[2]);
+            const afterClosing = expenseDay >= selectedCard.closingDay;
+            return (
+              <p className={`mt-1.5 text-xs font-medium flex items-center gap-1 ${afterClosing ? 'text-amber-600' : 'text-emerald-600'}`}>
+                <span>{afterClosing ? '⚠️' : '📅'}</span>
+                {afterClosing
+                  ? `Pasó el cierre (día ${selectedCard.closingDay}) → se cobra en ${monthName} ${yStr}`
+                  : `Antes del cierre (día ${selectedCard.closingDay}) → se cobra en ${monthName} ${yStr}`
+                }
+              </p>
+            );
+          })()}
         </div>
 
         {/* Categoría */}

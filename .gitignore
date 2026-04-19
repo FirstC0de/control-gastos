@@ -50,3 +50,6 @@ next-env.d.ts
 e2e/.auth/user.json
 playwright-report/
 test-results/
+
+# Claude Code — configuración local del desarrollador
+.claude/settings.local.json
