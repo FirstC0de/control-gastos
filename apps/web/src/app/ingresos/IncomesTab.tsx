@@ -133,6 +133,7 @@ export default function IncomesTab() {
 
   const startEdit = (income: Income) => {
     setEditingId(income.id);
+    const isMonthly = income.type === 'monthly';
     setForm({
       name:         income.name,
       amount:       income.amount,
@@ -140,8 +141,8 @@ export default function IncomesTab() {
       date:         income.date,
       categoryId:   income.categoryId ?? null,
       currency:     income.currency ?? 'ARS',
-      recurring:    income.recurring ?? false,
-      recurringDay: income.recurringDay,
+      recurring:    income.recurring || isMonthly,
+      recurringDay: income.recurringDay ?? (isMonthly ? 1 : undefined),
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -265,7 +266,14 @@ export default function IncomesTab() {
               <label className={labelClass}>Tipo</label>
               <select
                 value={form.type}
-                onChange={e => setForm(p => ({ ...p, type: e.target.value as Income['type'] }))}
+                onChange={e => {
+                  const newType = e.target.value as Income['type'];
+                  setForm(p => ({
+                    ...p,
+                    type: newType,
+                    ...(newType === 'monthly' ? { recurring: true, recurringDay: p.recurringDay ?? 1 } : {}),
+                  }));
+                }}
                 className={inputClass}
               >
                 {INCOME_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
