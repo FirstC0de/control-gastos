@@ -57,8 +57,20 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
     // ── Extraer texto con pdf.js ──────────────────────────
     const extractPDFText = async (file: File): Promise<string> => {
         const pdfjsLib = await import('pdfjs-dist');
-        const workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url);
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc.toString();
+
+        // Safari iOS < 15 no soporta ES module workers (.mjs como classic worker falla).
+        // Si el browser no soporta module workers, usar fake worker (main thread).
+        const supportsModuleWorker = (() => {
+            try { new Worker('data:text/javascript,', { type: 'module' }); return true; }
+            catch { return false; }
+        })();
+
+        if (supportsModuleWorker) {
+            const workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url);
+            pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc.toString();
+        } else {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        }
 
         const buffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
