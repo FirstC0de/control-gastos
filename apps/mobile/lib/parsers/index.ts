@@ -4,11 +4,13 @@ import { ImportSummary } from './types';
 import { parseGaliciaVisa, parseGaliciaMaster } from './galicia';
 import { parseSantander } from './santander';
 import { parseBBVA } from './bbva';
+import { parseICBC } from './icbc';
 
-export const detectBank = (text: string): 'galicia-visa' | 'galicia-master' | 'santander' | 'bbva' | 'unknown' => {
+export const detectBank = (text: string): 'galicia-visa' | 'galicia-master' | 'santander' | 'bbva' | 'icbc' | 'unknown' => {
     const t = text.toLowerCase();
     if (t.includes('santander')) return 'santander';
     if (t.includes('bbva')) return 'bbva';
+    if (t.includes('icbc')) return 'icbc';
     if (t.includes('galicia')) {
         return (t.includes('cuota del mes') || t.includes('detalle del consumo') && t.includes('subtotal'))
             ? 'galicia-master'
@@ -27,6 +29,7 @@ export const parseStatement = (text: string): ImportSummary | null => {
             return parseSantander(text, cardType);
         }
         case 'bbva': return parseBBVA(text);
+        case 'icbc': return parseICBC(text);
         default: return null;
     }
 };
