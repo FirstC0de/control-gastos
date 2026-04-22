@@ -5,7 +5,7 @@ export interface ParsedExpense {
     installments: number;
     currentInstallment: number;
     installmentAmount: number;
-    comprobante: string;
+    comprobante?: string;
     currency: 'ARS' | 'USD';
     selected: boolean;
     duplicate?: boolean;
