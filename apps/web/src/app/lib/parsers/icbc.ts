@@ -29,38 +29,70 @@ const txWithComp = /^(\d{2}\.\d{2}\.\d{2})\s+(\d{5,6})\*\s+(.+?)\s{2,}([\d.,]+)(
 // Línea sin comprobante: DD.MM.YY  DESC  MONTO_ARS  [MONTO_USD]
 const txNoComp   = /^(\d{2}\.\d{2}\.\d{2})\s+(.+?)\s{2,}([\d.,]+)(?:\s+([\d.,]+))?$/;
 
+// Línea que es solo un monto (o dos montos) — columna separada por pdf.js
+const amountOnlyRe = /^[\d.,]+([\s-]+[\d.,]+)*$/;
+
 export const parseICBC = (text: string): ImportSummary => {
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const items: ParsedExpense[] = [];
     let period = '';
     let closingDate: string | undefined;
     let dueDate: string | undefined;
 
     // ── Extraer fechas de cierre y vencimiento ────────────────────────────────
-    for (const line of lines) {
+    // Soporte para fecha en la misma línea o en la línea siguiente al label
+    for (let i = 0; i < rawLines.length; i++) {
+        const line = rawLines[i];
         if (!closingDate) {
             const m = line.match(/CIERRE\s+ACTUAL[:\s]+(\d{1,2}\s+[A-Za-z]{3}\s+\d{2})/i);
-            if (m) { closingDate = parseICBCHeaderDate(m[1]); period = line; }
+            if (m) {
+                closingDate = parseICBCHeaderDate(m[1]);
+                period = line;
+            } else if (/CIERRE\s+ACTUAL/i.test(line)) {
+                // Fecha en la línea siguiente
+                const next = rawLines[i + 1] ?? '';
+                const m2 = next.match(/(\d{1,2}\s+[A-Za-z]{3}\s+\d{2})/);
+                if (m2) { closingDate = parseICBCHeaderDate(m2[1]); period = line; }
+            }
         }
         if (!dueDate) {
             const m = line.match(/VENCIMIENTO[:\s]+(\d{1,2}\s+[A-Za-z]{3}\s+\d{2})/i);
-            if (m) dueDate = parseICBCHeaderDate(m[1]);
+            if (m) {
+                dueDate = parseICBCHeaderDate(m[1]);
+            } else if (/VENCIMIENTO\s+ACTUAL/i.test(line)) {
+                const next = rawLines[i + 1] ?? '';
+                const m2 = next.match(/(\d{1,2}\s+[A-Za-z]{3}\s+\d{2})/);
+                if (m2) dueDate = parseICBCHeaderDate(m2[1]);
+            }
         }
         if (closingDate && dueDate) break;
     }
 
+    // ── Pre-procesar: unir líneas de monto suelto con la línea anterior ───────
+    // pdf.js a veces separa la columna de monto en una línea distinta
+    const lines: string[] = [];
+    for (const line of rawLines) {
+        if (amountOnlyRe.test(line) && lines.length > 0) {
+            lines[lines.length - 1] += '  ' + line;
+        } else {
+            lines.push(line);
+        }
+    }
+
     // ── Parsear transacciones ─────────────────────────────────────────────────
     let inDetalle = false;
-    let pastTotal  = false;
 
     for (const line of lines) {
         if (/DETALLE\s+DE\s+TRANSACCION/i.test(line)) { inDetalle = true; continue; }
-        if (/Total\s+Consumos/i.test(line))            { pastTotal  = true; continue; }
-        if (!inDetalle || pastTotal) continue;
+        if (!inDetalle) continue;
 
-        // Ignorar pagos, saldos anteriores, ajustes y líneas de cabecera
-        if (/SALDO ANTERIOR|SU PAGO|ECDNO/i.test(line)) continue;
-        if (/^(FECHA|COMPROBANTE)/i.test(line)) continue;
+        // Ignorar líneas de totales, pagos, saldos, ajustes y cabeceras
+        if (/Total\s+Consumos/i.test(line))                 continue;
+        if (/SALDO\s+ACTUAL|PAGO\s+MINIMO/i.test(line))     continue;
+        if (/SALDO ANTERIOR|SU PAGO|ECDNO/i.test(line))     continue;
+        if (/^(FECHA|COMPROBANTE)/i.test(line))             continue;
+        // Impuestos y percepciones bancarias
+        if (/IIBB\s+PERCEP|IVA\s+RG|DB\.RG|DEBITAREMOS/i.test(line)) continue;
 
         const pushItem = (
             rawDate: string, rawDesc: string,
@@ -85,7 +117,7 @@ export const parseICBC = (text: string): ImportSummary => {
                 amount,
                 installments,
                 currentInstallment,
-                installmentAmount: amount,
+                installmentAmount: parseFloat((amount / installments).toFixed(2)),
                 comprobante,
                 currency: isUSD ? 'USD' : 'ARS',
                 selected: true,
