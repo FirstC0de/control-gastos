@@ -4,8 +4,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  serverExternalPackages: ['pdfjs-dist'],
   outputFileTracingIncludes: {
-    '/api/extract-pdf-text': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+    '/api/extract-pdf-text': ['./node_modules/pdfjs-dist/legacy/build/**/*.mjs'],
   },
   webpack: (config) => {
     config.resolve = {
