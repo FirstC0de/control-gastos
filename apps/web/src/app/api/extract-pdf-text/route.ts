@@ -14,13 +14,16 @@ export async function POST(req: NextRequest) {
         const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs' as any);
         const lib = pdfjsLib.default ?? pdfjsLib;
 
-        // En monorepo, pdfjs puede estar hoisted al root (../../) o local a apps/web
         const workerFile = path.join('node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs');
         const cwd = process.cwd();
-        const workerPath = existsSync(path.join(cwd, workerFile))
-            ? path.join(cwd, workerFile)
-            : path.resolve(cwd, '../..', workerFile);
+        const localPath = path.join(cwd, workerFile);
+        const rootPath = path.resolve(cwd, '../..', workerFile);
+        console.log('[PDF] cwd:', cwd);
+        console.log('[PDF] localPath:', localPath, '| exists:', existsSync(localPath));
+        console.log('[PDF] rootPath:', rootPath, '| exists:', existsSync(rootPath));
+        const workerPath = existsSync(localPath) ? localPath : rootPath;
         lib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
+        console.log('[PDF] workerSrc:', lib.GlobalWorkerOptions.workerSrc);
 
         const pdf = await lib.getDocument({ data: buffer, useSystemFonts: true }).promise;
         let fullText = '';
