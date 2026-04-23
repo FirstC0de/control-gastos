@@ -1,0 +1,47 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+
+export async function POST(req: NextRequest) {
+    try {
+        const formData = await req.formData();
+        const file = formData.get('file') as File | null;
+        if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+
+        const buffer = new Uint8Array(await file.arrayBuffer());
+
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs' as any);
+        const lib = pdfjsLib.default ?? pdfjsLib;
+
+        // Apuntar al worker real para que Node.js lo cargue con worker_threads
+        const workerPath = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+        lib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+
+        const pdf = await lib.getDocument({ data: buffer, useSystemFonts: true }).promise;
+        let fullText = '';
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+
+            const itemsByY: Record<number, { x: number; str: string }[]> = {};
+            for (const item of content.items as any[]) {
+                const y = Math.round(item.transform[5]);
+                if (!itemsByY[y]) itemsByY[y] = [];
+                itemsByY[y].push({ x: item.transform[4], str: item.str });
+            }
+
+            const sortedYs = Object.keys(itemsByY).map(Number).sort((a, b) => b - a);
+            for (const y of sortedYs) {
+                const line = itemsByY[y].sort((a, b) => a.x - b.x).map((i: any) => i.str).join('  ');
+                if (line.trim()) fullText += line + '\n';
+            }
+        }
+
+        return NextResponse.json({ text: fullText });
+    } catch (err: any) {
+        console.error('extract-pdf-text error:', err);
+        return NextResponse.json({ error: err.message ?? 'Error al procesar el PDF' }, { status: 500 });
+    }
+}
