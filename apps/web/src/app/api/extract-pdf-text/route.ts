@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRequire } from 'module';
+import { pathToFileURL } from 'url';
 
 const require = createRequire(import.meta.url);
 
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
 
         // Apuntar al worker real para que Node.js lo cargue con worker_threads
         const workerPath = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
-        lib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+        lib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
 
         const pdf = await lib.getDocument({ data: buffer, useSystemFonts: true }).promise;
         let fullText = '';
