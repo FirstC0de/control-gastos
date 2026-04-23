@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pathToFileURL } from 'url';
 import path from 'path';
 import { existsSync } from 'fs';
 
@@ -14,14 +13,9 @@ export async function POST(req: NextRequest) {
         const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs' as any);
         const lib = pdfjsLib.default ?? pdfjsLib;
 
-        const workerFile = path.join('node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs');
-        const cwd = process.cwd();
-        const localPath = path.join(cwd, workerFile);
-        const rootPath = path.resolve(cwd, '../..', workerFile);
-        const localExists = existsSync(localPath);
-        const rootExists = existsSync(rootPath);
-        const workerPath = localExists ? localPath : rootPath;
-        lib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
+        // Import the worker explicitly so nft includes it in the Vercel bundle,
+        // and so Node.js module cache has it ready when pdf.mjs does its internal import.
+        await import('pdfjs-dist/legacy/build/pdf.worker.mjs' as any);
 
         const pdf = await lib.getDocument({ data: buffer, useSystemFonts: true }).promise;
         let fullText = '';

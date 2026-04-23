@@ -13,6 +13,7 @@
     "lint": "npm run lint --workspace=apps/web"
   },
   "devDependencies": {
-    "babel-plugin-module-resolver": "^5.0.2"
+    "babel-plugin-module-resolver": "^5.0.2",
+    "expo": "^55.0.17"
   }
 }
