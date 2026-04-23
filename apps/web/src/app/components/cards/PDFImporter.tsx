@@ -54,47 +54,17 @@ export default function PDFImporter({ onClose }: { onClose?: () => void }) {
     const inputClass = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow";
     const labelClass = "block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5";
 
-    // ── Extraer texto con pdf.js ──────────────────────────
+    // ── Extraer texto enviando el PDF al servidor (evita problemas de workers en Safari) ──
     const extractPDFText = async (file: File): Promise<string> => {
-        const pdfjsLib = await import('pdfjs-dist');
-
-        // Safari iOS < 15 no soporta ES module workers (.mjs como classic worker falla).
-        // Si el browser no soporta module workers, usar fake worker (main thread).
-        const supportsModuleWorker = (() => {
-            try { new Worker('data:text/javascript,', { type: 'module' }); return true; }
-            catch { return false; }
-        })();
-
-        if (supportsModuleWorker) {
-            const workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url);
-            pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc.toString();
-        } else {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/extract-pdf-text', { method: 'POST', body: formData });
+        if (!res.ok) {
+            const { error } = await res.json().catch(() => ({ error: 'Error del servidor' }));
+            throw new Error(error ?? 'No se pudo procesar el PDF.');
         }
-
-        const buffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-        let fullText = '';
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-
-            const itemsByY: Record<number, { x: number; str: string }[]> = {};
-            for (const item of content.items as any[]) {
-                const y = Math.round(item.transform[5]);
-                if (!itemsByY[y]) itemsByY[y] = [];
-                itemsByY[y].push({ x: item.transform[4], str: item.str });
-            }
-
-            const sortedYs = Object.keys(itemsByY).map(Number).sort((a, b) => b - a);
-            for (const y of sortedYs) {
-                const line = itemsByY[y].sort((a, b) => a.x - b.x).map(i => i.str).join('  ');
-                if (line.trim()) fullText += line + '\n';
-            }
-        }
-
-        return fullText;
+        const { text } = await res.json();
+        return text as string;
     };
 
     const handleFile = async (file: File) => {
