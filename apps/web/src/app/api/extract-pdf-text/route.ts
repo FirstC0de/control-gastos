@@ -18,12 +18,10 @@ export async function POST(req: NextRequest) {
         const cwd = process.cwd();
         const localPath = path.join(cwd, workerFile);
         const rootPath = path.resolve(cwd, '../..', workerFile);
-        console.log('[PDF] cwd:', cwd);
-        console.log('[PDF] localPath:', localPath, '| exists:', existsSync(localPath));
-        console.log('[PDF] rootPath:', rootPath, '| exists:', existsSync(rootPath));
-        const workerPath = existsSync(localPath) ? localPath : rootPath;
+        const localExists = existsSync(localPath);
+        const rootExists = existsSync(rootPath);
+        const workerPath = localExists ? localPath : rootPath;
         lib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
-        console.log('[PDF] workerSrc:', lib.GlobalWorkerOptions.workerSrc);
 
         const pdf = await lib.getDocument({ data: buffer, useSystemFonts: true }).promise;
         let fullText = '';
@@ -49,6 +47,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ text: fullText });
     } catch (err: any) {
         console.error('extract-pdf-text error:', err);
-        return NextResponse.json({ error: err.message ?? 'Error al procesar el PDF' }, { status: 500 });
+        const cwd = process.cwd();
+        const workerFile = path.join('node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs');
+        const localPath = path.join(cwd, workerFile);
+        const rootPath = path.resolve(cwd, '../..', workerFile);
+        return NextResponse.json({
+            error: err.message ?? 'Error al procesar el PDF',
+            _debug: {
+                cwd,
+                localPath,
+                localExists: existsSync(localPath),
+                rootPath,
+                rootExists: existsSync(rootPath),
+            },
+        }, { status: 500 });
     }
 }
