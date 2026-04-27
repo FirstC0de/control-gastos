@@ -111,13 +111,15 @@ export const parseICBC = (text: string): ImportSummary => {
             const amount = isUSD ? usdAmt : arsAmt;
             if (amount <= 0) return;
 
+            // En ICBC el monto del resumen ya es el valor de la cuota individual,
+            // no el total de la compra. No hay que dividir por installments.
             items.push({
                 date: parseICBCDate(rawDate),
                 description: cleanDesc(desc.trim()),
                 amount,
                 installments,
                 currentInstallment,
-                installmentAmount: parseFloat((amount / installments).toFixed(2)),
+                installmentAmount: amount,
                 comprobante,
                 currency: isUSD ? 'USD' : 'ARS',
                 selected: true,
