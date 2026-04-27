@@ -20,7 +20,7 @@ const inputClass  = "w-full px-3 py-2 text-sm border border-slate-300 rounded-xl
 const labelClass  = "block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5";
 
 const EMPTY: Omit<Budget, 'id' | 'spent'> = {
-  name: '', categoryId: null, amount: 0, period: 'monthly', recurring: false, alertThreshold: 80,
+  name: '', categoryId: null, amount: 0, period: 'monthly', recurring: true, alertThreshold: 80,
 };
 
 export default function BudgetsTab() {

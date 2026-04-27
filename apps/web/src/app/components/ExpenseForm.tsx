@@ -273,10 +273,11 @@ export default function ExpenseForm({ onOpenImport, onOpenCards }: Props) {
         <RecurringToggle
           value={formData.recurring}
           onChange={v => setFormData({ ...formData, recurring: v, recurringDay: v ? (formData.recurringDay ?? 1) : 1 })}
-          labelOn="Recurrente (mensual)"
+          labelOn="Gasto recurrente"
           labelOff="Gasto puntual"
           descOn="Aparece automáticamente cada mes"
           descOff="Solo para el mes seleccionado"
+          activeWhenTrue
         />
       </div>
 

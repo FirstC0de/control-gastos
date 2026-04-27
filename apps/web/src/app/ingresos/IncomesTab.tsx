@@ -326,10 +326,11 @@ export default function IncomesTab() {
             <RecurringToggle
               value={form.recurring ?? false}
               onChange={v => setForm(p => ({ ...p, recurring: v, recurringDay: v ? (p.recurringDay ?? 1) : undefined }))}
-              labelOn="Recurrente (mensual)"
+              labelOn="Ingreso recurrente"
               labelOff="Ingreso puntual"
               descOn="Aparece automáticamente cada mes"
               descOff="Solo para el mes seleccionado"
+              activeWhenTrue
             />
           </div>
 
